@@ -222,16 +222,16 @@ let hmac_init_spec
     // poorly using the current release of Z3. Nightlies of Z3 have
     // fixed the problem, but are not yet integrated into our build.
 
-    llvm_sat_branches true;
+    /*llvm_sat_branches true;
 
     llvm_verify_tactic do {
         unint_z3 [ "hash_init_c_state"
                     , "hash_update_c_state"
                     , "hash_digest_c_state"
                     ];
-    };
+    };*/
 
-    //llvm_no_simulate; // "Admit".
+    llvm_no_simulate; // "Admit".
 };
 
 let hmac_update_spec
