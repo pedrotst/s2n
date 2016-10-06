@@ -14,23 +14,13 @@ addons:
 osx_image: xcode8
 
 os:
-  - osx
   - linux
 
 compiler:
-  - gcc
   - clang
 
 env:
-  - BUILD_S2N=true TESTS=unit
-  - LATEST_CLANG=true TESTS=fuzz
-  - TESTS=sawHMAC CONFIG=md5
-  - TESTS=sawHMAC CONFIG=none
-  - TESTS=sawHMAC CONFIG=sha1
-  - TESTS=sawHMAC CONFIG=sha224
   - TESTS=sawHMAC CONFIG=sha256
-  - TESTS=sawHMAC CONFIG=sha384
-  - TESTS=sawHMAC CONFIG=sha512
 
 
 matrix:
