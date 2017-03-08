@@ -53,6 +53,13 @@ struct s2n_handshake {
     struct s2n_hash_state sha256;
     struct s2n_hash_state sha384;
     struct s2n_hash_state sha512;
+    struct s2n_hash_state md5_sha1;
+
+    /* Used for TLS 1.0 */
+    struct s2n_hash_state md5_copy_working_space;
+    struct s2n_hash_state sha1_copy_working_space;
+    /*Used for TLS 1.2 */
+    struct s2n_hash_state hash_copy_working_space;
 
     uint8_t server_finished[S2N_SSL_FINISHED_LEN];
     uint8_t client_finished[S2N_SSL_FINISHED_LEN];

@@ -40,6 +40,70 @@
 #include "utils/s2n_blob.h"
 #include "utils/s2n_mem.h"
 
+static int s2n_connection_new_hashes(struct s2n_connection *conn)
+{
+    GUARD(s2n_hash_new(&conn->handshake.md5));
+    GUARD(s2n_hash_new(&conn->handshake.sha1));
+    GUARD(s2n_hash_new(&conn->handshake.sha224));
+    GUARD(s2n_hash_new(&conn->handshake.sha256));
+    GUARD(s2n_hash_new(&conn->handshake.sha384));
+    GUARD(s2n_hash_new(&conn->handshake.sha512));
+    GUARD(s2n_hash_new(&conn->handshake.md5_sha1));
+    GUARD(s2n_hash_new(&conn->handshake.md5_copy_working_space));
+    GUARD(s2n_hash_new(&conn->handshake.sha1_copy_working_space));
+    GUARD(s2n_hash_new(&conn->handshake.hash_copy_working_space));
+    GUARD(s2n_hash_new(&conn->prf_space.ssl3.md5));
+    GUARD(s2n_hash_new(&conn->prf_space.ssl3.sha1));
+    GUARD(s2n_hash_new(&conn->initial.signature_hash));
+    GUARD(s2n_hash_new(&conn->secure.signature_hash));
+
+    return 0;
+}
+
+static int s2n_connection_init_hashes(struct s2n_connection *conn)
+{
+    GUARD(s2n_hash_init(&conn->handshake.md5, S2N_HASH_MD5));
+    GUARD(s2n_hash_init(&conn->handshake.sha1, S2N_HASH_SHA1));
+    GUARD(s2n_hash_init(&conn->handshake.sha224, S2N_HASH_SHA224));
+    GUARD(s2n_hash_init(&conn->handshake.sha256, S2N_HASH_SHA256));
+    GUARD(s2n_hash_init(&conn->handshake.sha384, S2N_HASH_SHA384));
+    GUARD(s2n_hash_init(&conn->handshake.sha512, S2N_HASH_SHA512));
+    GUARD(s2n_hash_init(&conn->handshake.md5_sha1, S2N_HASH_MD5_SHA1));
+    GUARD(s2n_hash_init(&conn->handshake.md5_copy_working_space, S2N_HASH_MD5));
+    GUARD(s2n_hash_init(&conn->handshake.sha1_copy_working_space, S2N_HASH_SHA1));
+    GUARD(s2n_hash_init(&conn->handshake.hash_copy_working_space, S2N_HASH_NONE));
+    GUARD(s2n_hash_init(&conn->prf_space.ssl3.md5, S2N_HASH_MD5));
+    GUARD(s2n_hash_init(&conn->prf_space.ssl3.sha1, S2N_HASH_SHA1));
+    GUARD(s2n_hash_init(&conn->initial.signature_hash, S2N_HASH_NONE));
+    GUARD(s2n_hash_init(&conn->secure.signature_hash, S2N_HASH_NONE));
+
+    return 0;
+}
+
+static int s2n_connection_new_hmacs(struct s2n_connection *conn)
+{
+    GUARD(s2n_hmac_new(&conn->initial.client_record_mac));
+    GUARD(s2n_hmac_new(&conn->initial.client_record_mac_copy));
+    GUARD(s2n_hmac_new(&conn->initial.server_record_mac));
+    GUARD(s2n_hmac_new(&conn->secure.client_record_mac));
+    GUARD(s2n_hmac_new(&conn->secure.client_record_mac_copy));
+    GUARD(s2n_hmac_new(&conn->secure.server_record_mac));
+
+    return 0;
+}
+
+static int s2n_connection_init_hmacs(struct s2n_connection *conn)
+{
+    GUARD(s2n_hmac_init(&conn->initial.client_record_mac, S2N_HMAC_NONE, NULL, 0));
+    GUARD(s2n_hmac_init(&conn->initial.client_record_mac_copy, S2N_HMAC_NONE, NULL, 0));
+    GUARD(s2n_hmac_init(&conn->initial.server_record_mac, S2N_HMAC_NONE, NULL, 0));
+    GUARD(s2n_hmac_init(&conn->secure.client_record_mac, S2N_HMAC_NONE, NULL, 0));
+    GUARD(s2n_hmac_init(&conn->secure.client_record_mac_copy, S2N_HMAC_NONE, NULL, 0));
+    GUARD(s2n_hmac_init(&conn->secure.server_record_mac, S2N_HMAC_NONE, NULL, 0));
+
+    return 0;
+}
+
 struct s2n_connection *s2n_connection_new(s2n_mode mode)
 {
     struct s2n_blob blob;
@@ -101,8 +165,15 @@ struct s2n_connection *s2n_connection_new(s2n_mode mode)
     GUARD_PTR(s2n_session_key_alloc(&conn->initial.client_key));
     GUARD_PTR(s2n_session_key_alloc(&conn->initial.server_key));
 
+    /* Allocate long term hash and hmac memory */
     GUARD_PTR(s2n_prf_new(conn));
 
+    GUARD_PTR(s2n_connection_new_hashes(conn));
+    GUARD_PTR(s2n_connection_init_hashes(conn));
+    
+    GUARD_PTR(s2n_connection_new_hmacs(conn));
+    GUARD_PTR(s2n_connection_init_hmacs(conn));
+ 
     /* Initialize the growable stuffers. Zero length at first, but the resize
      * in _wipe will fix that
      */
@@ -145,6 +216,38 @@ static int s2n_connection_wipe_keys(struct s2n_connection *conn)
     GUARD(s2n_ecc_params_free(&conn->secure.server_ecc_params));
 
     GUARD(s2n_free(&conn->ct_response));
+
+    return 0;
+}
+
+static int s2n_connection_wipe_hashes(struct s2n_connection *conn)
+{
+    GUARD(s2n_hash_wipe(&conn->handshake.md5));
+    GUARD(s2n_hash_wipe(&conn->handshake.sha1));
+    GUARD(s2n_hash_wipe(&conn->handshake.sha224));
+    GUARD(s2n_hash_wipe(&conn->handshake.sha256));
+    GUARD(s2n_hash_wipe(&conn->handshake.sha384));
+    GUARD(s2n_hash_wipe(&conn->handshake.sha512));
+    GUARD(s2n_hash_wipe(&conn->handshake.md5_sha1));
+    GUARD(s2n_hash_wipe(&conn->handshake.md5_copy_working_space));
+    GUARD(s2n_hash_wipe(&conn->handshake.sha1_copy_working_space));
+    GUARD(s2n_hash_wipe(&conn->handshake.hash_copy_working_space));
+    GUARD(s2n_hash_wipe(&conn->prf_space.ssl3.md5));
+    GUARD(s2n_hash_wipe(&conn->prf_space.ssl3.sha1));
+    GUARD(s2n_hash_wipe(&conn->initial.signature_hash));
+    GUARD(s2n_hash_wipe(&conn->secure.signature_hash));
+
+    return 0;
+}
+
+static int s2n_connection_wipe_hmacs(struct s2n_connection *conn)
+{
+    GUARD(s2n_hmac_wipe(&conn->initial.client_record_mac));
+    GUARD(s2n_hmac_wipe(&conn->initial.client_record_mac_copy));
+    GUARD(s2n_hmac_wipe(&conn->initial.server_record_mac));
+    GUARD(s2n_hmac_wipe(&conn->secure.client_record_mac));
+    GUARD(s2n_hmac_wipe(&conn->secure.client_record_mac_copy));
+    GUARD(s2n_hmac_wipe(&conn->secure.server_record_mac));
 
     return 0;
 }
@@ -200,6 +303,28 @@ int s2n_connection_free(struct s2n_connection *conn)
     GUARD(s2n_connection_free_keys(conn));
 
     GUARD(s2n_prf_free(conn));
+    
+    GUARD(s2n_hash_free(&conn->handshake.md5));
+    GUARD(s2n_hash_free(&conn->handshake.sha1));
+    GUARD(s2n_hash_free(&conn->handshake.sha224));
+    GUARD(s2n_hash_free(&conn->handshake.sha256));
+    GUARD(s2n_hash_free(&conn->handshake.sha384)); 
+    GUARD(s2n_hash_free(&conn->handshake.sha512));
+    GUARD(s2n_hash_free(&conn->handshake.md5_sha1));
+    GUARD(s2n_hash_free(&conn->handshake.md5_copy_working_space));
+    GUARD(s2n_hash_free(&conn->handshake.sha1_copy_working_space));
+    GUARD(s2n_hash_free(&conn->handshake.hash_copy_working_space));
+    GUARD(s2n_hash_free(&conn->prf_space.ssl3.md5));
+    GUARD(s2n_hash_free(&conn->prf_space.ssl3.sha1));
+    GUARD(s2n_hash_free(&conn->initial.signature_hash));
+    GUARD(s2n_hash_free(&conn->secure.signature_hash));
+
+    GUARD(s2n_hmac_free(&conn->initial.client_record_mac));
+    GUARD(s2n_hmac_free(&conn->initial.client_record_mac_copy));
+    GUARD(s2n_hmac_free(&conn->initial.server_record_mac));
+    GUARD(s2n_hmac_free(&conn->secure.client_record_mac));
+    GUARD(s2n_hmac_free(&conn->secure.client_record_mac_copy));
+    GUARD(s2n_hmac_free(&conn->secure.server_record_mac));
 
     GUARD(s2n_free(&conn->status_response));
     GUARD(s2n_stuffer_free(&conn->in));
@@ -226,8 +351,85 @@ int s2n_connection_wipe(struct s2n_connection *conn)
      */
     int mode = conn->mode;
     struct s2n_config *config = conn->config;
-    struct s2n_signed_evp_digest p_hash_evp_hmac = conn->prf_space.tls.p_hash.evp_hmac;
-    const struct s2n_p_hash_implementation *p_hash_impl = conn->prf_space.tls.p_hash_impl;
+    
+    /* s2n PRF p_hash components */
+    struct s2n_hash_evp_digest p_hash_s2n_hmac_inner;
+    struct s2n_hash_implementation p_hash_s2n_hmac_inner_impl;
+    struct s2n_hash_evp_digest p_hash_s2n_hmac_inner_just_key;
+    struct s2n_hash_implementation p_hash_s2n_hmac_inner_just_key_impl;
+    struct s2n_hash_evp_digest p_hash_s2n_hmac_outer;
+    struct s2n_hash_implementation p_hash_s2n_hmac_outer_impl;
+    struct s2n_signed_evp_digest p_hash_evp_hmac;
+    struct s2n_p_hash_implementation p_hash_impl;
+
+    /* s2n hash state components */
+    struct s2n_hash_evp_digest md5;
+    struct s2n_hash_implementation md5_hash_impl;
+    struct s2n_hash_evp_digest sha1;
+    struct s2n_hash_implementation sha1_hash_impl;
+    struct s2n_hash_evp_digest sha224;
+    struct s2n_hash_implementation sha224_hash_impl;
+    struct s2n_hash_evp_digest sha256;
+    struct s2n_hash_implementation sha256_hash_impl;
+    struct s2n_hash_evp_digest sha384;
+    struct s2n_hash_implementation sha384_hash_impl;
+    struct s2n_hash_evp_digest sha512;
+    struct s2n_hash_implementation sha512_hash_impl;
+    struct s2n_hash_evp_digest md5_sha1;
+    struct s2n_hash_implementation md5_sha1_hash_impl;
+    struct s2n_hash_evp_digest md5_copy_working_space;
+    struct s2n_hash_implementation md5_copy_working_space_hash_impl;
+    struct s2n_hash_evp_digest sha1_copy_working_space;
+    struct s2n_hash_implementation sha1_copy_working_space_hash_impl;
+    struct s2n_hash_evp_digest hash_copy_working_space;
+    struct s2n_hash_implementation hash_copy_working_space_hash_impl;
+    struct s2n_hash_evp_digest prf_md5;
+    struct s2n_hash_implementation prf_md5_hash_impl;
+    struct s2n_hash_evp_digest prf_sha1;
+    struct s2n_hash_implementation prf_sha1_hash_impl;
+    struct s2n_hash_evp_digest initial_signature_hash;
+    struct s2n_hash_implementation initial_signature_hash_impl;
+    struct s2n_hash_evp_digest secure_signature_hash;
+    struct s2n_hash_implementation secure_signature_hash_impl;
+
+    /* s2n hmac state components from hash states within each hmac */
+    struct s2n_hash_evp_digest initial_client_mac_inner;
+    struct s2n_hash_implementation initial_client_mac_inner_impl;
+    struct s2n_hash_evp_digest initial_client_mac_inner_just_key;
+    struct s2n_hash_implementation initial_client_mac_inner_just_key_impl;
+    struct s2n_hash_evp_digest initial_client_mac_outer;
+    struct s2n_hash_implementation initial_client_mac_outer_impl;
+    struct s2n_hash_evp_digest initial_client_mac_copy_inner;
+    struct s2n_hash_implementation initial_client_mac_copy_inner_impl;
+    struct s2n_hash_evp_digest initial_client_mac_copy_inner_just_key;
+    struct s2n_hash_implementation initial_client_mac_copy_inner_just_key_impl;
+    struct s2n_hash_evp_digest initial_client_mac_copy_outer;
+    struct s2n_hash_implementation initial_client_mac_copy_outer_impl;
+    struct s2n_hash_evp_digest initial_server_mac_inner;
+    struct s2n_hash_implementation initial_server_mac_inner_impl;
+    struct s2n_hash_evp_digest initial_server_mac_inner_just_key;
+    struct s2n_hash_implementation initial_server_mac_inner_just_key_impl;
+    struct s2n_hash_evp_digest initial_server_mac_outer;
+    struct s2n_hash_implementation initial_server_mac_outer_impl;
+    struct s2n_hash_evp_digest secure_client_mac_inner;
+    struct s2n_hash_implementation secure_client_mac_inner_impl;
+    struct s2n_hash_evp_digest secure_client_mac_inner_just_key;
+    struct s2n_hash_implementation secure_client_mac_inner_just_key_impl;
+    struct s2n_hash_evp_digest secure_client_mac_outer;
+    struct s2n_hash_implementation secure_client_mac_outer_impl;
+    struct s2n_hash_evp_digest secure_client_mac_copy_inner;
+    struct s2n_hash_implementation secure_client_mac_copy_inner_impl;
+    struct s2n_hash_evp_digest secure_client_mac_copy_inner_just_key;
+    struct s2n_hash_implementation secure_client_mac_copy_inner_just_key_impl;
+    struct s2n_hash_evp_digest secure_client_mac_copy_outer;
+    struct s2n_hash_implementation secure_client_mac_copy_outer_impl;
+    struct s2n_hash_evp_digest secure_server_mac_inner;
+    struct s2n_hash_implementation secure_server_mac_inner_impl;
+    struct s2n_hash_evp_digest secure_server_mac_inner_just_key;
+    struct s2n_hash_implementation secure_server_mac_inner_just_key_impl;
+    struct s2n_hash_evp_digest secure_server_mac_outer;
+    struct s2n_hash_implementation secure_server_mac_outer_impl;
+
     struct s2n_stuffer alert_in;
     struct s2n_stuffer reader_alert_out;
     struct s2n_stuffer writer_alert_out;
@@ -243,6 +445,8 @@ int s2n_connection_wipe(struct s2n_connection *conn)
 
     /* Wipe all of the sensitive stuff */
     GUARD(s2n_connection_wipe_keys(conn));
+    GUARD(s2n_connection_wipe_hashes(conn));
+    GUARD(s2n_connection_wipe_hmacs(conn));
     GUARD(s2n_stuffer_wipe(&conn->alert_in));
     GUARD(s2n_stuffer_wipe(&conn->reader_alert_out));
     GUARD(s2n_stuffer_wipe(&conn->writer_alert_out));
@@ -280,6 +484,84 @@ int s2n_connection_wipe(struct s2n_connection *conn)
     memcpy_check(&initial_server_key, &conn->initial.server_key, sizeof(struct s2n_session_key));
     memcpy_check(&secure_client_key, &conn->secure.client_key, sizeof(struct s2n_session_key));
     memcpy_check(&secure_server_key, &conn->secure.server_key, sizeof(struct s2n_session_key));
+
+    /* Preserve handlers for PRF's p_hash to avoid re-allocation */
+    memcpy_check(&p_hash_s2n_hmac_inner, &conn->prf_space.tls.p_hash.s2n_hmac.inner.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&p_hash_s2n_hmac_inner_impl, &conn->prf_space.tls.p_hash.s2n_hmac.inner.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&p_hash_s2n_hmac_inner_just_key, &conn->prf_space.tls.p_hash.s2n_hmac.inner_just_key.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&p_hash_s2n_hmac_inner_just_key_impl, &conn->prf_space.tls.p_hash.s2n_hmac.inner_just_key.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&p_hash_s2n_hmac_outer, &conn->prf_space.tls.p_hash.s2n_hmac.outer.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&p_hash_s2n_hmac_outer_impl, &conn->prf_space.tls.p_hash.s2n_hmac.outer.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&p_hash_evp_hmac, &conn->prf_space.tls.p_hash.evp_hmac, sizeof(struct s2n_signed_evp_digest));
+    memcpy_check(&p_hash_impl, &conn->prf_space.tls.p_hash_impl, sizeof(struct s2n_p_hash_implementation));
+
+    /* Preserve handlers for hash states to avoid re-allocation */
+    memcpy_check(&md5, &conn->handshake.md5.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&md5_hash_impl, &conn->handshake.md5.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&sha1, &conn->handshake.sha1.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&sha1_hash_impl, &conn->handshake.sha1.hash_impl, sizeof(struct s2n_hash_implementation));    
+    memcpy_check(&sha224, &conn->handshake.sha224.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&sha224_hash_impl, &conn->handshake.sha224.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&sha256, &conn->handshake.sha256.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&sha256_hash_impl, &conn->handshake.sha256.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&sha384, &conn->handshake.sha384.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&sha384_hash_impl, &conn->handshake.sha384.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&sha512, &conn->handshake.sha512.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&sha512_hash_impl, &conn->handshake.sha512.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&md5_sha1, &conn->handshake.md5_sha1.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&md5_sha1_hash_impl, &conn->handshake.md5_sha1.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&md5_copy_working_space, &conn->handshake.md5_copy_working_space.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&md5_copy_working_space_hash_impl, &conn->handshake.md5_copy_working_space.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&sha1_copy_working_space, &conn->handshake.sha1_copy_working_space.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&sha1_copy_working_space_hash_impl, &conn->handshake.sha1_copy_working_space.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&hash_copy_working_space, &conn->handshake.hash_copy_working_space.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&hash_copy_working_space_hash_impl, &conn->handshake.hash_copy_working_space.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&prf_md5, &conn->prf_space.ssl3.md5.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&prf_md5_hash_impl, &conn->prf_space.ssl3.md5.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&prf_sha1, &conn->prf_space.ssl3.sha1.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&prf_sha1_hash_impl, &conn->prf_space.ssl3.sha1.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&initial_signature_hash, &conn->initial.signature_hash.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&initial_signature_hash_impl, &conn->initial.signature_hash.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&secure_signature_hash, &conn->secure.signature_hash.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&secure_signature_hash_impl, &conn->secure.signature_hash.hash_impl, sizeof(struct s2n_hash_implementation));
+
+    /* Preserve handlers for hmac states to avoid re-allocation */
+    memcpy_check(&initial_client_mac_inner, &conn->initial.client_record_mac.inner.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&initial_client_mac_inner_impl, &conn->initial.client_record_mac.inner.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&initial_client_mac_inner_just_key, &conn->initial.client_record_mac.inner_just_key.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&initial_client_mac_inner_just_key_impl, &conn->initial.client_record_mac.inner_just_key.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&initial_client_mac_outer, &conn->initial.client_record_mac.outer.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&initial_client_mac_outer_impl, &conn->initial.client_record_mac.outer.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&initial_client_mac_copy_inner, &conn->initial.client_record_mac_copy.inner.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&initial_client_mac_copy_inner_impl, &conn->initial.client_record_mac_copy.inner.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&initial_client_mac_copy_inner_just_key, &conn->initial.client_record_mac_copy.inner_just_key.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&initial_client_mac_copy_inner_just_key_impl, &conn->initial.client_record_mac_copy.inner_just_key.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&initial_client_mac_copy_outer, &conn->initial.client_record_mac_copy.outer.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&initial_client_mac_copy_outer_impl, &conn->initial.client_record_mac_copy.outer.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&initial_server_mac_inner, &conn->initial.server_record_mac.inner.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&initial_server_mac_inner_impl, &conn->initial.server_record_mac.inner.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&initial_server_mac_inner_just_key, &conn->initial.server_record_mac.inner_just_key.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&initial_server_mac_inner_just_key_impl, &conn->initial.server_record_mac.inner_just_key.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&initial_server_mac_outer, &conn->initial.server_record_mac.outer.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&initial_server_mac_outer_impl, &conn->initial.server_record_mac.outer.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&secure_client_mac_inner, &conn->secure.client_record_mac.inner.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&secure_client_mac_inner_impl, &conn->secure.client_record_mac.inner.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&secure_client_mac_inner_just_key, &conn->secure.client_record_mac.inner_just_key.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&secure_client_mac_inner_just_key_impl, &conn->secure.client_record_mac.inner_just_key.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&secure_client_mac_outer, &conn->secure.client_record_mac.outer.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&secure_client_mac_outer_impl, &conn->secure.client_record_mac.outer.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&secure_client_mac_copy_inner, &conn->secure.client_record_mac_copy.inner.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&secure_client_mac_copy_inner_impl, &conn->secure.client_record_mac_copy.inner.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&secure_client_mac_copy_inner_just_key, &conn->secure.client_record_mac_copy.inner_just_key.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&secure_client_mac_copy_inner_just_key_impl, &conn->secure.client_record_mac_copy.inner_just_key.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&secure_client_mac_copy_outer, &conn->secure.client_record_mac_copy.outer.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&secure_client_mac_copy_outer_impl, &conn->secure.client_record_mac_copy.outer.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&secure_server_mac_inner, &conn->secure.server_record_mac.inner.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&secure_server_mac_inner_impl, &conn->secure.server_record_mac.inner.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&secure_server_mac_inner_just_key, &conn->secure.server_record_mac.inner_just_key.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&secure_server_mac_inner_just_key_impl, &conn->secure.server_record_mac.inner_just_key.hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&secure_server_mac_outer, &conn->secure.server_record_mac.outer.digest.evp, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&secure_server_mac_outer_impl, &conn->secure.server_record_mac.outer.hash_impl, sizeof(struct s2n_hash_implementation));
 #if S2N_GCC_VERSION_AT_LEAST(4,6,0)
 #pragma GCC diagnostic pop
 #endif
@@ -293,8 +575,6 @@ int s2n_connection_wipe(struct s2n_connection *conn)
     conn->recv_io_context = NULL;
     conn->mode = mode;
     conn->config = config;
-    conn->prf_space.tls.p_hash.evp_hmac = p_hash_evp_hmac;
-    conn->prf_space.tls.p_hash_impl = p_hash_impl;
     conn->close_notify_queued = 0;
     conn->current_user_data_consumed = 0;
     conn->initial.cipher_suite = &s2n_null_cipher_suite;
@@ -304,14 +584,6 @@ int s2n_connection_wipe(struct s2n_connection *conn)
     conn->max_outgoing_fragment_length = S2N_DEFAULT_FRAGMENT_LENGTH;
     conn->handshake.handshake_type = INITIAL;
     conn->handshake.message_number = 0;
-    GUARD(s2n_hash_init(&conn->handshake.md5, S2N_HASH_MD5));
-    GUARD(s2n_hash_init(&conn->handshake.sha1, S2N_HASH_SHA1));
-    GUARD(s2n_hash_init(&conn->handshake.sha224, S2N_HASH_SHA224));
-    GUARD(s2n_hash_init(&conn->handshake.sha256, S2N_HASH_SHA256));
-    GUARD(s2n_hash_init(&conn->handshake.sha384, S2N_HASH_SHA384));
-    GUARD(s2n_hash_init(&conn->handshake.sha512, S2N_HASH_SHA512));
-    GUARD(s2n_hmac_init(&conn->client->client_record_mac, S2N_HMAC_NONE, NULL, 0));
-    GUARD(s2n_hmac_init(&conn->server->server_record_mac, S2N_HMAC_NONE, NULL, 0));
 
     memcpy_check(&conn->alert_in, &alert_in, sizeof(struct s2n_stuffer));
     memcpy_check(&conn->reader_alert_out, &reader_alert_out, sizeof(struct s2n_stuffer));
@@ -325,6 +597,88 @@ int s2n_connection_wipe(struct s2n_connection *conn)
     memcpy_check(&conn->secure.client_key, &secure_client_key, sizeof(struct s2n_session_key));
     memcpy_check(&conn->secure.server_key, &secure_server_key, sizeof(struct s2n_session_key));
 
+    /* Restore s2n_connection handlers for PRF's p_hash */
+    memcpy_check(&conn->prf_space.tls.p_hash.s2n_hmac.inner.digest.evp, &p_hash_s2n_hmac_inner, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->prf_space.tls.p_hash.s2n_hmac.inner.hash_impl, &p_hash_s2n_hmac_inner_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->prf_space.tls.p_hash.s2n_hmac.inner_just_key.digest.evp, &p_hash_s2n_hmac_inner_just_key, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->prf_space.tls.p_hash.s2n_hmac.inner_just_key.hash_impl, &p_hash_s2n_hmac_inner_just_key_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->prf_space.tls.p_hash.s2n_hmac.outer.digest.evp, &p_hash_s2n_hmac_outer, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->prf_space.tls.p_hash.s2n_hmac.outer.hash_impl, &p_hash_s2n_hmac_outer_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->prf_space.tls.p_hash.evp_hmac, &p_hash_evp_hmac, sizeof(struct s2n_signed_evp_digest));
+    memcpy_check(&conn->prf_space.tls.p_hash_impl, &p_hash_impl, sizeof(struct s2n_p_hash_implementation));
+
+    /* Restore s2n_connection handlers for hash states */
+    memcpy_check(&conn->handshake.md5.digest.evp, &md5, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->handshake.md5.hash_impl, &md5_hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->handshake.sha1.digest.evp, &sha1, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->handshake.sha1.hash_impl, &sha1_hash_impl, sizeof(struct s2n_hash_implementation));    
+    memcpy_check(&conn->handshake.sha224.digest.evp, &sha224, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->handshake.sha224.hash_impl, &sha224_hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->handshake.sha256.digest.evp, &sha256, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->handshake.sha256.hash_impl, &sha256_hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->handshake.sha384.digest.evp, &sha384, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->handshake.sha384.hash_impl, &sha384_hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->handshake.sha512.digest.evp, &sha512, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->handshake.sha512.hash_impl, &sha512_hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->handshake.md5_sha1.digest.evp, &md5_sha1, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->handshake.md5_sha1.hash_impl, &md5_sha1_hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->handshake.md5_copy_working_space.digest.evp, &md5_copy_working_space, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->handshake.md5_copy_working_space.hash_impl, &md5_copy_working_space_hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->handshake.sha1_copy_working_space.digest.evp, &sha1_copy_working_space, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->handshake.sha1_copy_working_space.hash_impl, &sha1_copy_working_space_hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->handshake.hash_copy_working_space.digest.evp, &hash_copy_working_space, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->handshake.hash_copy_working_space.hash_impl, &hash_copy_working_space_hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->prf_space.ssl3.md5.digest.evp, &prf_md5, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->prf_space.ssl3.md5.hash_impl, &prf_md5_hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->prf_space.ssl3.sha1.digest.evp, &prf_sha1, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->prf_space.ssl3.sha1.hash_impl, &prf_sha1_hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->initial.signature_hash.digest.evp, &initial_signature_hash, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->initial.signature_hash.hash_impl, &initial_signature_hash_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->secure.signature_hash.digest.evp, &secure_signature_hash, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->secure.signature_hash.hash_impl, &secure_signature_hash_impl, sizeof(struct s2n_hash_implementation));
+    
+    /* Restore s2n_connection handlers for hmac states */
+    memcpy_check(&conn->initial.client_record_mac.inner.digest.evp, &initial_client_mac_inner, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->initial.client_record_mac.inner.hash_impl, &initial_client_mac_inner_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->initial.client_record_mac.inner_just_key.digest.evp, &initial_client_mac_inner_just_key, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->initial.client_record_mac.inner_just_key.hash_impl, &initial_client_mac_inner_just_key_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->initial.client_record_mac.outer.digest.evp, &initial_client_mac_outer, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->initial.client_record_mac.outer.hash_impl, &initial_client_mac_outer_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->initial.client_record_mac_copy.inner.digest.evp, &initial_client_mac_copy_inner, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->initial.client_record_mac_copy.inner.hash_impl, &initial_client_mac_copy_inner_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->initial.client_record_mac_copy.inner_just_key.digest.evp, &initial_client_mac_copy_inner_just_key, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->initial.client_record_mac_copy.inner_just_key.hash_impl, &initial_client_mac_copy_inner_just_key_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->initial.client_record_mac_copy.outer.digest.evp, &initial_client_mac_copy_outer, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->initial.client_record_mac_copy.outer.hash_impl, &initial_client_mac_copy_outer_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->initial.server_record_mac.inner.digest.evp, &initial_server_mac_inner, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->initial.server_record_mac.inner.hash_impl, &initial_server_mac_inner_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->initial.server_record_mac.inner_just_key.digest.evp, &initial_server_mac_inner_just_key, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->initial.server_record_mac.inner_just_key.hash_impl, &initial_server_mac_inner_just_key_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->initial.server_record_mac.outer.digest.evp, &initial_server_mac_outer, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->initial.server_record_mac.outer.hash_impl, &initial_server_mac_outer_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->secure.client_record_mac.inner.digest.evp, &secure_client_mac_inner, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->secure.client_record_mac.inner.hash_impl, &secure_client_mac_inner_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->secure.client_record_mac.inner_just_key.digest.evp, &secure_client_mac_inner_just_key, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->secure.client_record_mac.inner_just_key.hash_impl, &secure_client_mac_inner_just_key_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->secure.client_record_mac.outer.digest.evp, &secure_client_mac_outer, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->secure.client_record_mac.outer.hash_impl, &secure_client_mac_outer_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->secure.client_record_mac_copy.inner.digest.evp, &secure_client_mac_copy_inner, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->secure.client_record_mac_copy.inner.hash_impl, &secure_client_mac_copy_inner_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->secure.client_record_mac_copy.inner_just_key.digest.evp, &secure_client_mac_copy_inner_just_key, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->secure.client_record_mac_copy.inner_just_key.hash_impl, &secure_client_mac_copy_inner_just_key_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->secure.client_record_mac_copy.outer.digest.evp, &secure_client_mac_copy_outer, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->secure.client_record_mac_copy.outer.hash_impl, &secure_client_mac_copy_outer_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->secure.server_record_mac.inner.digest.evp, &secure_server_mac_inner, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->secure.server_record_mac.inner.hash_impl, &secure_server_mac_inner_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->secure.server_record_mac.inner_just_key.digest.evp, &secure_server_mac_inner_just_key, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->secure.server_record_mac.inner_just_key.hash_impl, &secure_server_mac_inner_just_key_impl, sizeof(struct s2n_hash_implementation));
+    memcpy_check(&conn->secure.server_record_mac.outer.digest.evp, &secure_server_mac_outer, sizeof(struct s2n_hash_evp_digest));
+    memcpy_check(&conn->secure.server_record_mac.outer.hash_impl, &secure_server_mac_outer_impl, sizeof(struct s2n_hash_implementation));
+
+    /* Re-initialize hash and hmac states */
+    GUARD(s2n_connection_init_hashes(conn));
+    GUARD(s2n_connection_init_hmacs(conn));
+    
     if (conn->mode == S2N_SERVER) {
         /* Start with the highest protocol version so that the highest common protocol version can be selected */
         /* during handshake. */
@@ -659,3 +1013,4 @@ const uint8_t *s2n_connection_get_sct_list(struct s2n_connection *conn, uint32_t
     *length = conn->ct_response.size;
     return conn->ct_response.data;
 }
+

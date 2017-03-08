@@ -56,9 +56,12 @@ static uint32_t s2n_map_slot(struct s2n_map *map, struct s2n_blob *key)
         uint32_t u32[8];
     } digest;
 
+    GUARD(s2n_hash_new(&sha256));
     GUARD(s2n_hash_init(&sha256, S2N_HASH_SHA256));
     GUARD(s2n_hash_update(&sha256, key->data, key->size));
     GUARD(s2n_hash_digest(&sha256, digest.u8, sizeof(digest)));
+
+    GUARD(s2n_hash_free(&sha256));
 
     return digest.u32[0] % map->capacity;
 }
@@ -73,6 +76,7 @@ static int s2n_map_embiggen(struct s2n_map *map, uint32_t capacity)
     }
 
     GUARD(s2n_alloc(&mem, (capacity * sizeof(struct s2n_map_entry))));
+    GUARD(s2n_blob_zero(&mem));
 
     tmp.capacity = capacity;
     tmp.size = 0;

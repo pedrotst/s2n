@@ -26,7 +26,7 @@
 #define S2N_OPENSSL_VERSION_AT_LEAST(major, minor, fix) \
     (OPENSSL_VERSION_NUMBER >= ((major << 28) + (minor << 20) + (fix << 12)))
 
-/* Define API's that change based on the OpenSSL Major Version. */
+/* Define API's that change based on the OpenSSL Major Version */
 #if S2N_OPENSSL_VERSION_AT_LEAST(1,1,0) && !defined(LIBRESSL_VERSION_NUMBER)
 #define S2N_EVP_MD_CTX_NEW() (EVP_MD_CTX_new())
 #define S2N_EVP_MD_CTX_RESET(md_ctx) (EVP_MD_CTX_reset(md_ctx))

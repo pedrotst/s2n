@@ -31,12 +31,16 @@
 int s2n_hkdf_extract(s2n_hmac_algorithm alg, const struct s2n_blob *salt, const struct s2n_blob *key, struct s2n_blob *pseudo_rand_key)
 {
     struct s2n_hmac_state hmac;
+    GUARD(s2n_hmac_new(&hmac));
+
     uint8_t hmac_size;
     GUARD(s2n_hmac_digest_size(alg, &hmac_size));
     pseudo_rand_key->size = hmac_size;
     GUARD(s2n_hmac_init(&hmac, alg, salt->data, salt->size));
     GUARD(s2n_hmac_update(&hmac, key->data, key->size));
     GUARD(s2n_hmac_digest(&hmac, pseudo_rand_key->data, pseudo_rand_key->size));
+
+    GUARD(s2n_hmac_free(&hmac));
 
     return 0;
 }
@@ -58,6 +62,7 @@ static int s2n_hkdf_expand(s2n_hmac_algorithm alg, const struct s2n_blob *pseudo
     }
 
     struct s2n_hmac_state hmac;
+    GUARD(s2n_hmac_new(&hmac));
 
     for (uint32_t curr_round = 1; curr_round <= total_rounds; curr_round++) {
         uint32_t cat_len;
@@ -77,6 +82,7 @@ static int s2n_hkdf_expand(s2n_hmac_algorithm alg, const struct s2n_blob *pseudo
         memcpy_check(output->data + done_len, prev, cat_len);
 
         done_len += cat_len;
+        GUARD(s2n_hmac_wipe(&hmac));
     }
 
     return 0;

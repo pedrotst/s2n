@@ -35,8 +35,8 @@ let setup_initial_hash_state prefix = do {
 
     alg0 <- llvm_var (p "" "0") (llvm_int 32);
 
-    hash_ctx0_h      <- llvm_var (p "((" "1).0).0") (llvm_array 8 (llvm_int 64));
-    hash_ctx0_Nl     <- llvm_var (p "((" "1).0).1") (llvm_int 64);
+    hash_ctx0_h      <- llvm_ptr (p "((" "1).0).0") (llvm_array 8 (llvm_int 64));
+    hash_ctx0_Nl     <- llvm_ptr (p "((" "1).0).1") (llvm_int 64);
     hash_ctx0_Nh     <- llvm_var (p "((" "1).0).2") (llvm_int 64);
     hash_ctx0_u      <- llvm_var (p "(((" "1).0).3).0") (llvm_array 16 (llvm_int 64));
     hash_ctx0_num    <- llvm_var (p "((" "1).0).4") (llvm_int 32);
