@@ -1,11 +1,6 @@
 sudo: true
+language: c
 
-addons:
-    apt:
-      sources:
-        - ubuntu-toolchain-r-test
-
-osx_image: xcode8
 
 os:
   - linux
@@ -60,7 +55,7 @@ before_install:
 
   # Install SAW with Z3 on Linux only 
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then .travis/install_saw.sh ; fi
-  - export PATH=$PATH:$PWD/saw-0.2-2016-09-26-Ubuntu14.04-64/bin:$PWD/z3
+  - export PATH=$PATH:$PWD/saw-0.2-2017-01-01-Ubuntu14.04-64/bin:$PWD/z3
 
 install:
   # Download and Install LibFuzzer
