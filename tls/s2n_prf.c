@@ -87,11 +87,7 @@ static int s2n_p_hash_init(union s2n_prf_working_space *ws, s2n_hmac_algorithm a
     notnull_check(ws->tls.mac_key = EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL, secret->data, secret->size));
 
     eq_check(ws->tls.md_ctx, NULL);
-#if S2N_OPENSSL_VERSION_AT_LEAST(1,1,0) && !defined(LIBRESSL_VERSION_NUMBER)
-    notnull_check(ws->tls.md_ctx = EVP_MD_CTX_new());
-#else
-    notnull_check(ws->tls.md_ctx = EVP_MD_CTX_create());
-#endif
+    notnull_check(ws->tls.md_ctx = S2N_EVP_MD_CTX_NEW());
 
     EVP_MD_CTX_set_flags(ws->tls.md_ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
 
@@ -151,11 +147,7 @@ static int s2n_p_hash_free(union s2n_prf_working_space *ws)
     notnull_check(ws->tls.md_ctx);
 
     EVP_PKEY_free(ws->tls.mac_key);
-#if S2N_OPENSSL_VERSION_AT_LEAST(1,1,0) && !defined(LIBRESSL_VERSION_NUMBER)
-    EVP_MD_CTX_free(ws->tls.md_ctx);
-#else
-    EVP_MD_CTX_destroy(ws->tls.md_ctx);
-#endif
+    S2N_EVP_MD_CTX_FREE(ws->tls.md_ctx);
     ws->tls.mac_key = NULL;
     ws->tls.md_ctx = NULL;
 
