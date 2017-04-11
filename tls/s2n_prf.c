@@ -79,15 +79,20 @@ static int s2n_sslv3_prf(union s2n_prf_working_space *ws, struct s2n_blob *secre
     return 0;
 }
 
-static int s2n_p_hash_init(union s2n_prf_working_space *ws, s2n_hmac_algorithm alg, const struct s2n_blob *secret)
+static int s2n_p_hash_new(union s2n_prf_working_space *ws, const struct s2n_blob *secret)
 {
-    int r = 0;
-
     eq_check(ws->tls.mac_key, NULL);
     notnull_check(ws->tls.mac_key = EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL, secret->data, secret->size));
 
     eq_check(ws->tls.md_ctx, NULL);
     notnull_check(ws->tls.md_ctx = S2N_EVP_MD_CTX_NEW());
+
+    return 0;
+}
+
+static int s2n_p_hash_init(union s2n_prf_working_space *ws, s2n_hmac_algorithm alg)
+{
+    int r = 0;
 
     EVP_MD_CTX_set_flags(ws->tls.md_ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
 
@@ -154,12 +159,13 @@ static int s2n_p_hash_free(union s2n_prf_working_space *ws)
     return 0;
 }
 
-static int s2n_p_hash_reset(union s2n_prf_working_space *ws, s2n_hmac_algorithm alg, const struct s2n_blob *secret)
+static int s2n_p_hash_reset(union s2n_prf_working_space *ws, s2n_hmac_algorithm alg)
 {
-    GUARD(s2n_p_hash_free(ws));
-    GUARD(s2n_p_hash_init(ws, alg, secret));
+    if (S2N_EVP_MD_CTX_RESET(ws->tls.md_ctx) == 0) {
+        S2N_ERROR(S2N_ERR_P_HASH_RESET_FAILED);
+    }
 
-    return 0;
+    return s2n_p_hash_init(ws, alg);
 }
 
 static int s2n_p_hash(union s2n_prf_working_space *ws, s2n_hmac_algorithm alg, const struct s2n_blob *secret,
@@ -171,7 +177,8 @@ static int s2n_p_hash(union s2n_prf_working_space *ws, s2n_hmac_algorithm alg, c
     GUARD(s2n_hmac_digest_size(alg, (uint8_t*)&digest_size));
 
     /* First compute hmac(secret + A(0)) */
-    GUARD(s2n_p_hash_init(ws, alg, secret));
+    GUARD(s2n_p_hash_new(ws, secret));
+    GUARD(s2n_p_hash_init(ws, alg));
     GUARD(s2n_p_hash_update(ws->tls.md_ctx, label->data, label->size));
     GUARD(s2n_p_hash_update(ws->tls.md_ctx, seed_a->data, seed_a->size));
    
@@ -186,7 +193,7 @@ static int s2n_p_hash(union s2n_prf_working_space *ws, s2n_hmac_algorithm alg, c
 
     while (outputlen) {
         /* Now compute hmac(secret + A(N - 1) + seed) */
-        GUARD(s2n_p_hash_reset(ws, alg, secret));
+        GUARD(s2n_p_hash_reset(ws, alg));
         GUARD(s2n_p_hash_update(ws->tls.md_ctx, ws->tls.digest0, digest_size));
         
         /* Add the label + seed and compute this round's A */
@@ -206,7 +213,7 @@ static int s2n_p_hash(union s2n_prf_working_space *ws, s2n_hmac_algorithm alg, c
         }
 
         /* Stash a digest of A(N), in A(N), for the next round */
-        GUARD(s2n_p_hash_reset(ws, alg, secret));
+        GUARD(s2n_p_hash_reset(ws, alg));
         GUARD(s2n_p_hash_update(ws->tls.md_ctx, ws->tls.digest0, digest_size));
         GUARD(s2n_p_hash_final(ws->tls.md_ctx, ws->tls.digest0, &digest_size));
     }

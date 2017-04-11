@@ -76,6 +76,7 @@ struct s2n_error_translation EN[] = {
     {S2N_ERR_P_HASH_INIT_FAILED, "error initializing p_hash"},
     {S2N_ERR_P_HASH_UPDATE_FAILED, "error updating p_hash"},
     {S2N_ERR_P_HASH_FINAL_FAILED, "error creating p_hash digest"},
+    {S2N_ERR_P_HASH_RESET_FAILED, "error resetting p_hash"},
     {S2N_ERR_SIZE_MISMATCH, "size mismatch"},
     {S2N_ERR_DECODE_CERTIFICATE, "error decoding certificate"},
     {S2N_ERR_DECODE_PRIVATE_KEY, "error decoding private key"},
