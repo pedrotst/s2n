@@ -94,6 +94,10 @@ static int s2n_p_hash_init(union s2n_prf_working_space *ws, s2n_hmac_algorithm a
 {
     int r = 0;
 
+    notnull_check(ws->tls.mac_key);
+    notnull_check(ws->tls.md_ctx);
+
+    /* Ignore the MD5 check when in FIPS mode to comply with the TLS 1.0 RFC */
     EVP_MD_CTX_set_flags(ws->tls.md_ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
 
     switch (alg) {
