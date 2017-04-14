@@ -29,6 +29,7 @@
 #include "crypto/s2n_hmac.h"
 #include "crypto/s2n_hash.h"
 #include "crypto/s2n_openssl.h"
+#include "crypto/s2n_fips.h"
 
 #include "utils/s2n_safety.h"
 #include "utils/s2n_blob.h"
@@ -145,7 +146,7 @@ static int s2n_evp_p_hash_final(EVP_MD_CTX *md_ctx, unsigned char *digest, size_
     return 0;
 }
 
-int s2n_evp_prf_free(union s2n_prf_working_space *ws)
+int s2n_evp_p_hash_free(union s2n_prf_working_space *ws)
 {
     notnull_check(ws->evp_tls.md_ctx);
     S2N_EVP_MD_CTX_FREE(ws->evp_tls.md_ctx);
@@ -154,20 +155,20 @@ int s2n_evp_prf_free(union s2n_prf_working_space *ws)
     return 0;
 }
 
-int s2n_evp_prf_wipe(union s2n_prf_working_space *ws)
+static int s2n_evp_p_hash_wipe(EVP_MD_CTX *md_ctx)
 {
-    if (S2N_EVP_MD_CTX_RESET(ws->evp_tls.md_ctx) == 0) {
-        S2N_ERROR(S2N_ERR_P_HASH_RESET_FAILED);
+    if (S2N_EVP_MD_CTX_RESET(md_ctx) == 0) {
+        S2N_ERROR(S2N_ERR_P_HASH_WIPE_FAILED);
     }
 
     return 0;
 }
 
-static int s2n_evp_p_hash_reset(union s2n_prf_working_space *ws, s2n_hmac_algorithm alg, EVP_PKEY *mac_key)
+static int s2n_evp_p_hash_reset(EVP_MD_CTX *md_ctx, s2n_hmac_algorithm alg, EVP_PKEY *mac_key)
 {
-    GUARD(s2n_evp_prf_wipe(ws));
+    GUARD(s2n_evp_p_hash_wipe(md_ctx));
 
-    return s2n_evp_p_hash_init(ws->evp_tls.md_ctx, alg, mac_key);
+    return s2n_evp_p_hash_init(md_ctx, alg, mac_key);
 }
 
 static int s2n_evp_p_hash(union s2n_prf_working_space *ws, s2n_hmac_algorithm alg, struct s2n_blob *secret,
@@ -196,7 +197,7 @@ static int s2n_evp_p_hash(union s2n_prf_working_space *ws, s2n_hmac_algorithm al
 
     while (outputlen) {
         /* Now compute hmac(secret + A(N - 1) + seed) */
-        GUARD(s2n_evp_p_hash_reset(ws, alg, mac_key));
+        GUARD(s2n_evp_p_hash_reset(ws->evp_tls.md_ctx, alg, mac_key));
         GUARD(s2n_evp_p_hash_update(ws->evp_tls.md_ctx, ws->evp_tls.digest0, digest_size));
         
         /* Add the label + seed and compute this round's A */
@@ -216,14 +217,14 @@ static int s2n_evp_p_hash(union s2n_prf_working_space *ws, s2n_hmac_algorithm al
         }
 
         /* Stash a digest of A(N), in A(N), for the next round */
-        GUARD(s2n_evp_p_hash_reset(ws, alg, mac_key));
+        GUARD(s2n_evp_p_hash_reset(ws->evp_tls.md_ctx, alg, mac_key));
         GUARD(s2n_evp_p_hash_update(ws->evp_tls.md_ctx, ws->evp_tls.digest0, digest_size));
         GUARD(s2n_evp_p_hash_final(ws->evp_tls.md_ctx, ws->evp_tls.digest0, &digest_size));
     }
 
     notnull_check(mac_key);
     EVP_PKEY_free(mac_key);
-    GUARD(s2n_evp_prf_wipe(ws));
+    GUARD(s2n_evp_p_hash_wipe(ws->evp_tls.md_ctx));
 
     return 0;
 }
@@ -279,6 +280,27 @@ static int s2n_hmac_p_hash(union s2n_prf_working_space *ws, s2n_hmac_algorithm a
     return 0;
 }
 
+int s2n_prf_init(void)
+{
+    /* When in FIPS mode, the EVP DigestSign API's must be used for the PRF */
+    if (is_in_fips_mode()) {
+        s2n_p_hash = s2n_evp_p_hash;
+    } else {
+        s2n_p_hash = s2n_hmac_p_hash;
+    }
+    notnull_check(s2n_p_hash);
+
+    return 0;
+}
+
+int s2n_prf_cleanup(void)
+{
+    notnull_check(s2n_p_hash);
+    s2n_p_hash = NULL;
+
+    return 0;
+}
+
 static int s2n_prf(struct s2n_connection *conn, struct s2n_blob *secret, struct s2n_blob *label, struct s2n_blob *seed_a, struct s2n_blob *seed_b, struct s2n_blob *out)
 {
     if (conn->actual_protocol_version == S2N_SSLv3) {
@@ -292,15 +314,6 @@ static int s2n_prf(struct s2n_connection *conn, struct s2n_blob *secret, struct 
      * outputs will be XORd just ass the TLS 1.0 and 1.1 RFCs require.
      */
     GUARD(s2n_blob_zero(out));
-
-    int (*s2n_p_hash)(union s2n_prf_working_space *, s2n_hmac_algorithm, struct s2n_blob *, struct s2n_blob *, struct s2n_blob *, struct s2n_blob *, struct s2n_blob *);
-
-    if (IS_IN_FIPS_MODE()) {
-        s2n_p_hash = s2n_evp_p_hash;
-    } else {
-        s2n_p_hash = s2n_hmac_p_hash;
-    }
-
 
     if (conn->actual_protocol_version == S2N_TLS12) {
         return s2n_p_hash(&conn->prf_space, conn->secure.cipher_suite->tls12_prf_alg, secret, label, seed_a, seed_b, out);

@@ -50,11 +50,15 @@ union s2n_prf_working_space {
     } ssl3;
 };
 
+int (*s2n_p_hash)(union s2n_prf_working_space *, s2n_hmac_algorithm, struct s2n_blob *,
+    struct s2n_blob *, struct s2n_blob *, struct s2n_blob *, struct s2n_blob *);
+
 #include "tls/s2n_connection.h"
 
-extern int s2n_evp_prf_new(union s2n_prf_working_space *ws);
-extern int s2n_evp_prf_free(union s2n_prf_working_space *ws);
-extern int s2n_evp_prf_wipe(union s2n_prf_working_space *ws);
+extern int s2n_evp_p_hash_new(union s2n_prf_working_space *ws);
+extern int s2n_evp_p_hash_free(union s2n_prf_working_space *ws);
+extern int s2n_prf_init(void);
+extern int s2n_prf_cleanup(void);
 extern int s2n_prf_master_secret(struct s2n_connection *conn, struct s2n_blob *premaster_secret);
 extern int s2n_prf_key_expansion(struct s2n_connection *conn);
 extern int s2n_prf_server_finished(struct s2n_connection *conn);
