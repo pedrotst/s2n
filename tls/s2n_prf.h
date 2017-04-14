@@ -31,11 +31,16 @@
 
 union s2n_prf_working_space {
     struct {
-        EVP_PKEY *mac_key;
-        EVP_MD_CTX *md_ctx;
+        struct s2n_hmac_state hmac;
         uint8_t digest0[S2N_MAX_DIGEST_LEN];
         uint8_t digest1[S2N_MAX_DIGEST_LEN];
     } tls;
+
+    struct {
+        EVP_MD_CTX *md_ctx;
+        uint8_t digest0[S2N_MAX_DIGEST_LEN];
+        uint8_t digest1[S2N_MAX_DIGEST_LEN];
+    } evp_tls;
 
     struct {
         struct s2n_hash_state md5;
@@ -47,6 +52,9 @@ union s2n_prf_working_space {
 
 #include "tls/s2n_connection.h"
 
+extern int s2n_evp_prf_new(union s2n_prf_working_space *ws);
+extern int s2n_evp_prf_free(union s2n_prf_working_space *ws);
+extern int s2n_evp_prf_wipe(union s2n_prf_working_space *ws);
 extern int s2n_prf_master_secret(struct s2n_connection *conn, struct s2n_blob *premaster_secret);
 extern int s2n_prf_key_expansion(struct s2n_connection *conn);
 extern int s2n_prf_server_finished(struct s2n_connection *conn);
