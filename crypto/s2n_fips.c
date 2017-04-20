@@ -20,5 +20,11 @@
 /* Return 1 if FIPS mode is enabled, 0 otherwise. */
 int is_in_fips_mode()
 {
+#ifdef OPENSSL_FIPS
+    /* FIPS mode can be entered only if OPENSSL_FIPS is defined */
     return !!FIPS_mode();
+#else
+    /* FIPS mode not supported */
+    return 0;
+#endif
 }
