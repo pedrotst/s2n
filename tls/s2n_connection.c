@@ -102,7 +102,7 @@ struct s2n_connection *s2n_connection_new(s2n_mode mode)
     GUARD_PTR(s2n_session_key_alloc(&conn->initial.client_key));
     GUARD_PTR(s2n_session_key_alloc(&conn->initial.server_key));
 
-    if (is_in_fips_mode()) {
+    if (s2n_is_in_fips_mode()) {
         /* FIPS mode must use EVP DigestSign API's for the PRF.
          * Allocate EVP contexts used by the P Hash.
          */
@@ -205,7 +205,7 @@ int s2n_connection_free(struct s2n_connection *conn)
     GUARD(s2n_connection_wipe_keys(conn));
     GUARD(s2n_connection_free_keys(conn));
 
-    if (is_in_fips_mode()) {
+    if (s2n_is_in_fips_mode()) {
         /* FIPS mode must use EVP DigestSign API's for the PRF.
          * Free EVP contexts used by the P Hash.
          */

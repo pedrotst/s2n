@@ -283,7 +283,7 @@ static int s2n_hmac_p_hash(union s2n_prf_working_space *ws, s2n_hmac_algorithm a
 int s2n_prf_init(void)
 {
     /* When in FIPS mode, the EVP DigestSign API's must be used for the PRF */
-    if (is_in_fips_mode()) {
+    if (s2n_is_in_fips_mode()) {
         s2n_p_hash = s2n_evp_p_hash;
     } else {
         s2n_p_hash = s2n_hmac_p_hash;

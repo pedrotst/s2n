@@ -18,7 +18,7 @@
 #include "crypto/s2n_fips.h"
 
 /* Return 1 if FIPS mode is enabled, 0 otherwise. */
-int is_in_fips_mode()
+int s2n_is_in_fips_mode()
 {
 #ifdef OPENSSL_FIPS
     /* FIPS mode can be entered only if OPENSSL_FIPS is defined */

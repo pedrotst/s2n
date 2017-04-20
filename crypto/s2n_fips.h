@@ -15,4 +15,4 @@
 
 #pragma once
 
-int is_in_fips_mode();
+int s2n_is_in_fips_mode();
