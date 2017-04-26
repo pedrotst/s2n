@@ -95,6 +95,7 @@ struct s2n_connection {
 
     /* The PRF needs some storage elements to work with */
     union s2n_prf_working_space prf_space;
+    struct s2n_prf_implementation prf_impl;
 
     /* Our workhorse stuffers, used for buffering the plaintext
      * and encrypted data in both directions.
