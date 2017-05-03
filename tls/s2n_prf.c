@@ -251,37 +251,37 @@ const struct s2n_prf_implementation s2n_hmac_p_hash = {
     .free = &s2n_hmac_p_hash_free,
 };
 
-static int s2n_p_hash(struct s2n_prf_implementation signed_digest, union s2n_prf_working_space *ws, s2n_hmac_algorithm alg, struct s2n_blob *secret,
+static int s2n_p_hash(const struct s2n_prf_implementation *signed_digest, union s2n_prf_working_space *ws, s2n_hmac_algorithm alg, struct s2n_blob *secret,
                       struct s2n_blob *label, struct s2n_blob *seed_a, struct s2n_blob *seed_b, struct s2n_blob *out)
 {
     uint8_t digest_size;
     GUARD(s2n_hmac_digest_size(alg, &digest_size));
 
     /* First compute hmac(secret + A(0)) */
-    GUARD(signed_digest.init(ws, alg, secret));
-    GUARD(signed_digest.update(ws, label->data, label->size));
-    GUARD(signed_digest.update(ws, seed_a->data, seed_a->size)); 
+    GUARD(signed_digest->init(ws, alg, secret));
+    GUARD(signed_digest->update(ws, label->data, label->size));
+    GUARD(signed_digest->update(ws, seed_a->data, seed_a->size)); 
 
     if (seed_b) {
-        GUARD(signed_digest.update(ws, seed_b->data, seed_b->size));
+        GUARD(signed_digest->update(ws, seed_b->data, seed_b->size));
     }
-    GUARD(signed_digest.final(ws, ws->tls.digest0, digest_size));
+    GUARD(signed_digest->final(ws, ws->tls.digest0, digest_size));
 
     uint32_t outputlen = out->size;
     uint8_t *output = out->data;
 
     while (outputlen) {
         /* Now compute hmac(secret + A(N - 1) + seed) */
-        GUARD(signed_digest.reset(ws));
-        GUARD(signed_digest.update(ws, ws->tls.digest0, digest_size));
+        GUARD(signed_digest->reset(ws));
+        GUARD(signed_digest->update(ws, ws->tls.digest0, digest_size));
 
         /* Add the label + seed and compute this round's A */
-        GUARD(signed_digest.update(ws, label->data, label->size));
-        GUARD(signed_digest.update(ws, seed_a->data, seed_a->size));
+        GUARD(signed_digest->update(ws, label->data, label->size));
+        GUARD(signed_digest->update(ws, seed_a->data, seed_a->size));
         if (seed_b) {
-            GUARD(signed_digest.update(ws, seed_b->data, seed_b->size));
+            GUARD(signed_digest->update(ws, seed_b->data, seed_b->size));
         }
-        GUARD(signed_digest.final(ws, ws->tls.digest1, digest_size));
+        GUARD(signed_digest->final(ws, ws->tls.digest1, digest_size));
 
         uint32_t bytes_to_xor = MIN(outputlen, digest_size);
 
@@ -292,23 +292,24 @@ static int s2n_p_hash(struct s2n_prf_implementation signed_digest, union s2n_prf
         }
 
         /* Stash a digest of A(N), in A(N), for the next round */
-        GUARD(signed_digest.reset(ws));
-        GUARD(signed_digest.update(ws, ws->tls.digest0, digest_size));
-        GUARD(signed_digest.final(ws, ws->tls.digest0, digest_size));
+        GUARD(signed_digest->reset(ws));
+        GUARD(signed_digest->update(ws, ws->tls.digest0, digest_size));
+        GUARD(signed_digest->final(ws, ws->tls.digest0, digest_size));
     }
 
-    GUARD(signed_digest.cleanup(ws));
+    GUARD(signed_digest->cleanup(ws));
 
     return 0;
 }
 
 int s2n_prf_init(struct s2n_connection *conn)
 {
-    /* When in FIPS mode, the EVP DigestSign API's must be used for the PRF */
     if (s2n_is_in_fips_mode()) {
-        conn->prf_impl = s2n_evp_p_hash;
+        /* When in FIPS mode, the EVP DigestSign API's must be used for the PRF */
+        conn->prf_impl = &s2n_evp_p_hash;
     } else {
-        conn->prf_impl = s2n_hmac_p_hash;
+        /* Aside from FIPS mode, the formally verified s2n_hmac implementation is used for the PRF */
+        conn->prf_impl = &s2n_hmac_p_hash;
     }
 
     return 0;

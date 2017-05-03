@@ -22,9 +22,11 @@ int s2n_is_in_fips_mode()
 {
 #ifdef OPENSSL_FIPS
     /* FIPS mode can be entered only if OPENSSL_FIPS is defined */
-    return !!FIPS_mode();
-#else
-    /* FIPS mode not supported */
-    return 0;
+    if (FIPS_mode()) {
+        return 1;
+    }
 #endif
+
+    /* FIPS mode is not supported or FIPS mode is not enabled */
+    return 0;
 }

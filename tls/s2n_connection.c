@@ -102,7 +102,7 @@ struct s2n_connection *s2n_connection_new(s2n_mode mode)
     GUARD_PTR(s2n_session_key_alloc(&conn->initial.server_key));
 
     GUARD_PTR(s2n_prf_init(conn));
-    GUARD_PTR(conn->prf_impl.new(&conn->prf_space));
+    GUARD_PTR(conn->prf_impl->new(&conn->prf_space));
 
     /* Initialize the growable stuffers. Zero length at first, but the resize
      * in _wipe will fix that
@@ -200,7 +200,7 @@ int s2n_connection_free(struct s2n_connection *conn)
     GUARD(s2n_connection_wipe_keys(conn));
     GUARD(s2n_connection_free_keys(conn));
 
-    GUARD(conn->prf_impl.free(&conn->prf_space));
+    GUARD(conn->prf_impl->free(&conn->prf_space));
 
     GUARD(s2n_free(&conn->status_response));
     GUARD(s2n_stuffer_free(&conn->in));
@@ -228,7 +228,7 @@ int s2n_connection_wipe(struct s2n_connection *conn)
     int mode = conn->mode;
     struct s2n_config *config = conn->config;
     union s2n_prf_working_space prf_space = conn->prf_space;
-    struct s2n_prf_implementation prf_impl = conn->prf_impl;
+    const struct s2n_prf_implementation *prf_impl = conn->prf_impl;
     struct s2n_stuffer alert_in;
     struct s2n_stuffer reader_alert_out;
     struct s2n_stuffer writer_alert_out;
