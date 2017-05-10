@@ -101,8 +101,7 @@ struct s2n_connection *s2n_connection_new(s2n_mode mode)
     GUARD_PTR(s2n_session_key_alloc(&conn->initial.client_key));
     GUARD_PTR(s2n_session_key_alloc(&conn->initial.server_key));
 
-    GUARD_PTR(s2n_prf_init(conn));
-    GUARD_PTR(conn->prf_impl->new(&conn->prf_space));
+    GUARD_PTR(s2n_prf_new(conn));
 
     /* Initialize the growable stuffers. Zero length at first, but the resize
      * in _wipe will fix that
@@ -200,7 +199,7 @@ int s2n_connection_free(struct s2n_connection *conn)
     GUARD(s2n_connection_wipe_keys(conn));
     GUARD(s2n_connection_free_keys(conn));
 
-    GUARD(conn->prf_impl->free(&conn->prf_space));
+    GUARD(s2n_prf_free(conn));
 
     GUARD(s2n_free(&conn->status_response));
     GUARD(s2n_stuffer_free(&conn->in));
@@ -227,8 +226,8 @@ int s2n_connection_wipe(struct s2n_connection *conn)
      */
     int mode = conn->mode;
     struct s2n_config *config = conn->config;
-    union s2n_prf_working_space prf_space = conn->prf_space;
-    const struct s2n_prf_implementation *prf_impl = conn->prf_impl;
+    struct s2n_signed_evp_digest p_hash_evp_hmac = conn->prf_space.tls.p_hash.evp_hmac;
+    const struct s2n_p_hash_implementation *p_hash_impl = conn->prf_space.tls.p_hash_impl;
     struct s2n_stuffer alert_in;
     struct s2n_stuffer reader_alert_out;
     struct s2n_stuffer writer_alert_out;
@@ -294,8 +293,8 @@ int s2n_connection_wipe(struct s2n_connection *conn)
     conn->recv_io_context = NULL;
     conn->mode = mode;
     conn->config = config;
-    conn->prf_space = prf_space;
-    conn->prf_impl = prf_impl;
+    conn->prf_space.tls.p_hash.evp_hmac = p_hash_evp_hmac;
+    conn->prf_space.tls.p_hash_impl = p_hash_impl;
     conn->close_notify_queued = 0;
     conn->current_user_data_consumed = 0;
     conn->initial.cipher_suite = &s2n_null_cipher_suite;
