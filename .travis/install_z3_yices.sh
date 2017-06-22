@@ -32,10 +32,11 @@ cd $DOWNLOAD_DIR
 
 #download z3 and yices
 curl https://saw.galois.com/builds/z3/z3 > z3
-curl https://saw.galois.com/builds/yices/yices_smt2-linux-static > yices_smt2
+curl https://saw.galois.com/builds/yices/yices_smt2-linux-static > yices-smt2
 sudo chmod +x z3
-sudo chmod +x yices_smt2
+sudo chmod +x yices-smt2
 mkdir -p $INSTALL_DIR/bin
 mv z3 $INSTALL_DIR/bin
-mv yices_smt2 $INSTALL_DIR/bin
-
+mv yices-smt2 $INSTALL_DIR/bin
+$INSTALL_DIR/bin/z3 --version
+$INSTALL_DIR/bin/yices-smt2 --version
