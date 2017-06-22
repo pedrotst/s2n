@@ -31,8 +31,8 @@ mkdir -p $DOWNLOAD_DIR
 cd $DOWNLOAD_DIR
 
 #download z3 and yices
-curl http://saw.galois.com/builds/z3/z3 > z3
-curl http://saw.galois.com/builds/yices/yices_smt2-linux-static > yices_smt2
+curl https://saw.galois.com/builds/z3/z3 > z3
+curl https://saw.galois.com/builds/yices/yices_smt2-linux-static > yices_smt2
 sudo chmod +x z3
 sudo chmod +x yices_smt2
 mkdir -p $INSTALL_DIR/bin
