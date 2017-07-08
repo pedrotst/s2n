@@ -42,7 +42,7 @@ let conn_handshake_message_number pconn = crucible_elem (crucible_elem pconn 36)
 
 corked <- crucible_declare_ghost_state "corked";
 // assume the socket is initially uncorked
-crucible_ghost_value corked {{ False }};
+crucible_ghost_value corked {{ 0 : [1] }};
 
 // setup_handshake de-serializes parts of the s2n_handshake and
 // s2n_connection structs into a Cryptol record.
@@ -59,13 +59,16 @@ let setup_connection = do {
    crucible_points_to (conn_handshake_handshake_type pconn) (crucible_term handshake_type); 
 
    message_number <- crucible_fresh_var "message_number" (llvm_int 32);
-   crucible_points_to (conn_handshake_message_number pconn) (crucible_term message_number); 
+   crucible_points_to (conn_handshake_message_number pconn) (crucible_term message_number);
+
+   cork_val <- crucible_fresh_var "corked" (llvm_int 1);
+   crucible_ghost_value corked cork_val;
 
    return (pconn, {{ {corked_io = corked_io
                      ,mode      = mode
                      ,handshake = {message_number = message_number
 		                  ,handshake_type = handshake_type}
-         	     ,corked    = corked
+         	     ,corked    = cork_val
 		     ,is_caching_enabled = False
 		     ,resume_from_cache = False
 		     ,server_can_send_ocsp = False
@@ -138,7 +141,7 @@ let s2n_socket_write_uncork_spec = do {
 
     crucible_execute_func [pconn];
 
-    crucible_ghost_value corked {{ False }};
+    crucible_ghost_value corked {{ 0 : [1] }};
 
     crucible_return (crucible_term {{ 0 : [32] }});
 };
@@ -152,7 +155,7 @@ let s2n_socket_write_cork_spec = do {
 
     crucible_execute_func [pconn];
 
-    crucible_ghost_value corked {{ True }};
+    crucible_ghost_value corked {{ 1 : [1] }};
 
     crucible_return (crucible_term {{ 0 : [32] }});
 };
