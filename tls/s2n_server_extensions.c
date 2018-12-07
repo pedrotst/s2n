@@ -28,10 +28,12 @@
 #include "utils/s2n_safety.h"
 #include "utils/s2n_blob.h"
 
+static int s2n_recv_server_renegotiation_info_ext(struct s2n_connection *conn, struct s2n_stuffer *extension);
 static int s2n_recv_server_alpn(struct s2n_connection *conn, struct s2n_stuffer *extension);
 static int s2n_recv_server_status_request(struct s2n_connection *conn, struct s2n_stuffer *extension);
 static int s2n_recv_server_sct_list(struct s2n_connection *conn, struct s2n_stuffer *extension);
 static int s2n_recv_server_max_frag_len(struct s2n_connection *conn, struct s2n_stuffer *extension);
+static int s2n_recv_server_session_ticket_ext(struct s2n_connection *conn, struct s2n_stuffer *extension);
 
 int s2n_server_extensions_send(struct s2n_connection *conn, struct s2n_stuffer *out)
 {
@@ -56,6 +58,9 @@ int s2n_server_extensions_send(struct s2n_connection *conn, struct s2n_stuffer *
     }
     if (conn->mfl_code) {
         total_size += 5;
+    }
+    if (s2n_server_sending_nst(conn)) {
+        total_size += 4;
     }
 
     if (total_size == 0) {
@@ -119,20 +124,26 @@ int s2n_server_extensions_send(struct s2n_connection *conn, struct s2n_stuffer *
         GUARD(s2n_stuffer_write_uint8(out, conn->mfl_code));
     }
 
+    /* Write session ticket extension */
+    if (s2n_server_sending_nst(conn)) {
+        GUARD(s2n_stuffer_write_uint16(out, TLS_EXTENSION_SESSION_TICKET));
+        GUARD(s2n_stuffer_write_uint16(out, 0));
+    }
+
     return 0;
 }
 
 int s2n_server_extensions_recv(struct s2n_connection *conn, struct s2n_blob *extensions)
 {
-    struct s2n_stuffer in;
+    struct s2n_stuffer in = {{0}};
 
     GUARD(s2n_stuffer_init(&in, extensions));
     GUARD(s2n_stuffer_write(&in, extensions));
 
     while (s2n_stuffer_data_available(&in)) {
-        struct s2n_blob ext;
+        struct s2n_blob ext = {0};
         uint16_t extension_type, extension_size;
-        struct s2n_stuffer extension;
+        struct s2n_stuffer extension = {{0}};
 
         GUARD(s2n_stuffer_read_uint16(&in, &extension_type));
         GUARD(s2n_stuffer_read_uint16(&in, &extension_size));
@@ -145,6 +156,9 @@ int s2n_server_extensions_recv(struct s2n_connection *conn, struct s2n_blob *ext
         GUARD(s2n_stuffer_write(&extension, &ext));
 
         switch (extension_type) {
+        case TLS_EXTENSION_RENEGOTIATION_INFO:
+            GUARD(s2n_recv_server_renegotiation_info_ext(conn, &extension));
+            break;
         case TLS_EXTENSION_ALPN:
             GUARD(s2n_recv_server_alpn(conn, &extension));
             break;
@@ -157,9 +171,26 @@ int s2n_server_extensions_recv(struct s2n_connection *conn, struct s2n_blob *ext
         case TLS_EXTENSION_MAX_FRAG_LEN:
             GUARD(s2n_recv_server_max_frag_len(conn, &extension));
             break;
+        case TLS_EXTENSION_SESSION_TICKET:
+            GUARD(s2n_recv_server_session_ticket_ext(conn, &extension));
+            break;
         }
     }
 
+    return 0;
+}
+
+int s2n_recv_server_renegotiation_info_ext(struct s2n_connection *conn, struct s2n_stuffer *extension)
+{
+    /* RFC5746 Section 3.4: The client MUST then verify that the length of
+     * the "renegotiated_connection" field is zero, and if it is not, MUST
+     * abort the handshake. */
+    uint8_t renegotiated_connection_len;
+    GUARD(s2n_stuffer_read_uint8(extension, &renegotiated_connection_len));
+    S2N_ERROR_IF(s2n_stuffer_data_available(extension), S2N_ERR_NON_EMPTY_RENEGOTIATION_INFO);
+    S2N_ERROR_IF(renegotiated_connection_len, S2N_ERR_NON_EMPTY_RENEGOTIATION_INFO);
+
+    conn->secure_renegotiation = 1;
     return 0;
 }
 
@@ -210,6 +241,13 @@ int s2n_recv_server_max_frag_len(struct s2n_connection *conn, struct s2n_stuffer
     uint8_t mfl_code;
     GUARD(s2n_stuffer_read_uint8(extension, &mfl_code));
     S2N_ERROR_IF(mfl_code != conn->config->mfl_code, S2N_ERR_MAX_FRAG_LEN_MISMATCH);
+
+    return 0;
+}
+
+int s2n_recv_server_session_ticket_ext(struct s2n_connection *conn, struct s2n_stuffer *extension)
+{
+    conn->session_ticket_status = S2N_NEW_TICKET;
 
     return 0;
 }

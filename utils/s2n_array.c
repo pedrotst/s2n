@@ -40,7 +40,7 @@ static int s2n_array_enlarge(struct s2n_array *array, uint32_t capacity)
 
 struct s2n_array *s2n_array_new(size_t element_size)
 {
-    struct s2n_blob mem;
+    struct s2n_blob mem = {0};
     struct s2n_array *array;
 
     GUARD_PTR(s2n_alloc(&mem, sizeof(struct s2n_array)));
@@ -88,10 +88,49 @@ void *s2n_array_get(struct s2n_array *array, uint32_t index)
     return element;
 }
 
+void *s2n_array_insert(struct s2n_array *array, uint32_t index)
+{
+    if (array == NULL) {
+        return NULL;
+    }
+
+    if (array->num_of_elements >= array->capacity) {
+        /* Enlarge the array */
+        GUARD_PTR(s2n_array_enlarge(array, array->capacity * 2));
+    }
+
+    memcpy_check_ptr((uint8_t *) array->elements + array->element_size * (index + 1),
+                     (uint8_t *) array->elements + array->element_size * index,
+                     (array->num_of_elements - index) * array->element_size);
+
+    void *element = (uint8_t *) array->elements + array->element_size * index;
+    array->num_of_elements++;
+
+    return element;
+}
+
+int s2n_array_remove(struct s2n_array *array, uint32_t index)
+{
+    notnull_check(array);
+
+    memcpy_check((uint8_t *) array->elements + array->element_size * index,
+                 (uint8_t *) array->elements + array->element_size * (index + 1),
+                 (array->num_of_elements - index - 1) * array->element_size);
+
+    array->num_of_elements--;
+
+    /* After shifting, zero the last element */
+    memset_check((uint8_t *) array->elements + array->element_size * array->num_of_elements,
+                  0,
+                  array->element_size);
+
+    return 0;
+}
+
 int s2n_array_free(struct s2n_array *array)
 {
     notnull_check(array);
-    struct s2n_blob mem;
+    struct s2n_blob mem = {0};
 
     /* Free the elements */
     mem.data = (void *) array->elements;

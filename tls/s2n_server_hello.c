@@ -87,6 +87,9 @@ int s2n_server_hello_recv(struct s2n_connection *conn)
         GUARD(s2n_set_cipher_as_client(conn, cipher_suite_wire));
         /* Erase master secret which might have been set for session resumption */
         memset_check((uint8_t *)conn->secure.master_secret, 0, S2N_TLS_SECRET_LEN);
+
+        /* Erase client session ticket which might have been set for session resumption */
+        conn->client_ticket.size = 0;
     }
 
     conn->actual_protocol_version_established = 1;
@@ -96,7 +99,7 @@ int s2n_server_hello_recv(struct s2n_connection *conn)
 
         S2N_ERROR_IF(extensions_size > s2n_stuffer_data_available(in), S2N_ERR_BAD_MESSAGE);
 
-        struct s2n_blob extensions;
+        struct s2n_blob extensions = {0};
         extensions.size = extensions_size;
         extensions.data = s2n_stuffer_raw_read(in, extensions.size);
         notnull_check(extensions.data);
@@ -104,7 +107,11 @@ int s2n_server_hello_recv(struct s2n_connection *conn)
         GUARD(s2n_server_extensions_recv(conn, &extensions));
     }
 
-    GUARD(s2n_conn_set_handshake_type(conn));
+    int r = s2n_conn_set_handshake_type(conn);
+    GUARD(r);
+    if (r == 1) {
+        return r;
+    }
 
     if (IS_RESUMPTION_HANDSHAKE(conn->handshake.handshake_type)) {
         GUARD(s2n_prf_key_expansion(conn));
@@ -121,13 +128,14 @@ int s2n_server_hello_recv(struct s2n_connection *conn)
         conn->secure.conn_hash_alg = S2N_HASH_MD5_SHA1;
     }
 
+    //printf("OMG server hello recv passed for mode 1\n");
     return 0;
 }
 
 int s2n_server_hello_send(struct s2n_connection *conn)
 {
     struct s2n_stuffer *out = &conn->handshake.io;
-    struct s2n_stuffer server_random;
+    struct s2n_stuffer server_random = {{0}};
     struct s2n_blob b, r;
     uint8_t protocol_version[S2N_TLS_PROTOCOL_VERSION_LEN];
 

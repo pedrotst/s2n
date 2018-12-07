@@ -78,7 +78,7 @@ struct s2n_cipher_suite {
 
     /* Cipher name in Openssl format */
     const char *name;
-    const uint8_t iana_value[2];
+    const uint8_t iana_value[S2N_TLS_CIPHER_SUITE_LEN];
 
     const struct s2n_key_exchange_algorithm *key_exchange_alg;
 
@@ -90,6 +90,10 @@ struct s2n_cipher_suite {
     /* List of all possible record alg implementations in descending priority */
     const struct s2n_record_algorithm *all_record_algs[S2N_MAX_POSSIBLE_RECORD_ALGS];
     const uint8_t num_record_algs;
+
+    /* SSLv3 utilizes HMAC differently from TLS */
+    const struct s2n_record_algorithm *sslv3_record_alg;
+    struct s2n_cipher_suite *sslv3_cipher_suite;
 
     /* RFC 5426(TLS1.2) allows cipher suite defined PRFs. Cipher suites defined in and before TLS1.2 will use
      * P_hash with SHA256 when TLS1.2 is negotiated.

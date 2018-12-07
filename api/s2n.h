@@ -56,7 +56,6 @@ extern int s2n_config_free(struct s2n_config *config);
 extern int s2n_config_free_dhparams(struct s2n_config *config);
 extern int s2n_config_free_cert_chain_and_key(struct s2n_config *config);
 
-
 typedef int (*s2n_clock_time_nanoseconds) (void *, uint64_t *);
 extern int s2n_config_set_wall_clock(struct s2n_config *config, s2n_clock_time_nanoseconds clock_fn, void *ctx);
 extern int s2n_config_set_monotonic_clock(struct s2n_config *config, s2n_clock_time_nanoseconds clock_fn, void *ctx);
@@ -106,9 +105,21 @@ typedef enum { S2N_STATUS_REQUEST_NONE = 0, S2N_STATUS_REQUEST_OCSP = 1 } s2n_st
 extern int s2n_config_set_status_request_type(struct s2n_config *config, s2n_status_request_type type);
 typedef enum { S2N_CT_SUPPORT_NONE = 0, S2N_CT_SUPPORT_REQUEST = 1 } s2n_ct_support_level;
 extern int s2n_config_set_ct_support_level(struct s2n_config *config, s2n_ct_support_level level);
+typedef enum { S2N_ALERT_FAIL_ON_WARNINGS = 0, S2N_ALERT_IGNORE_WARNINGS = 1 } s2n_alert_behavior;
+extern int s2n_config_set_alert_behavior(struct s2n_config *config, s2n_alert_behavior alert_behavior);
 extern int s2n_config_set_extension_data(struct s2n_config *config, s2n_tls_extension_type type, const uint8_t *data, uint32_t length);
 extern int s2n_config_send_max_fragment_length(struct s2n_config *config, s2n_max_frag_len mfl_code);
 extern int s2n_config_accept_max_fragment_length(struct s2n_config *config);
+
+extern int s2n_config_set_session_state_lifetime(struct s2n_config *config, uint64_t lifetime_in_secs);
+
+extern int s2n_config_set_session_tickets_onoff(struct s2n_config *config, uint8_t enabled);
+extern int s2n_config_set_ticket_encrypt_decrypt_key_lifetime(struct s2n_config *config, uint64_t lifetime_in_secs);
+extern int s2n_config_set_ticket_decrypt_key_lifetime(struct s2n_config *config, uint64_t lifetime_in_secs);
+extern int s2n_config_add_ticket_crypto_key(struct s2n_config *config,
+                                            const uint8_t *name, uint32_t name_len,
+                                            uint8_t *key, uint32_t key_len,
+                                            uint64_t intro_time_in_seconds_from_epoch);
 
 struct s2n_connection;
 typedef enum { S2N_SERVER, S2N_CLIENT } s2n_mode;
@@ -146,6 +157,7 @@ extern int s2n_connection_set_send_cb(struct s2n_connection *conn, s2n_send_fn s
 
 extern int s2n_connection_prefer_throughput(struct s2n_connection *conn);
 extern int s2n_connection_prefer_low_latency(struct s2n_connection *conn);
+extern int s2n_connection_set_dynamic_record_threshold(struct s2n_connection *conn, uint32_t resize_threshold, uint16_t timeout_threshold);
 
 /* If you don't want to use the configuration wide callback, you can set this per connection and it will be honored. */
 extern int s2n_connection_set_verify_host_callback(struct s2n_connection *config, s2n_verify_host_fn host_fn, void *data);
@@ -155,16 +167,18 @@ extern int s2n_connection_set_blinding(struct s2n_connection *conn, s2n_blinding
 extern uint64_t s2n_connection_get_delay(struct s2n_connection *conn);
 
 extern int s2n_connection_set_cipher_preferences(struct s2n_connection *conn, const char *version);
+extern int s2n_connection_set_protocol_preferences(struct s2n_connection *conn, const char * const *protocols, int protocol_count);
 extern int s2n_set_server_name(struct s2n_connection *conn, const char *server_name);
 extern const char *s2n_get_server_name(struct s2n_connection *conn);
 extern const char *s2n_get_application_protocol(struct s2n_connection *conn);
 extern const uint8_t *s2n_connection_get_ocsp_response(struct s2n_connection *conn, uint32_t *length);
 extern const uint8_t *s2n_connection_get_sct_list(struct s2n_connection *conn, uint32_t *length);
 
-typedef enum { S2N_NOT_BLOCKED = 0, S2N_BLOCKED_ON_READ, S2N_BLOCKED_ON_WRITE } s2n_blocked_status;
+typedef enum { S2N_NOT_BLOCKED = 0, S2N_BLOCKED_ON_READ, S2N_BLOCKED_ON_WRITE, S2N_BLOCKED_ON_APPLICATION_DATA } s2n_blocked_status;
 extern int s2n_negotiate(struct s2n_connection *conn, s2n_blocked_status *blocked);
 extern ssize_t s2n_send(struct s2n_connection *conn, const void *buf, ssize_t size, s2n_blocked_status *blocked);
 extern ssize_t s2n_recv(struct s2n_connection *conn,  void *buf, ssize_t size, s2n_blocked_status *blocked);
+extern uint32_t s2n_peek(struct s2n_connection *conn);
 
 extern int s2n_connection_wipe(struct s2n_connection *conn);
 extern int s2n_connection_free(struct s2n_connection *conn);
@@ -180,9 +194,11 @@ extern int s2n_connection_get_client_cert_chain(struct s2n_connection *conn, uin
 
 extern int s2n_connection_set_session(struct s2n_connection *conn, const uint8_t *session, size_t length);
 extern int s2n_connection_get_session(struct s2n_connection *conn, uint8_t *session, size_t max_length);
+extern int s2n_connection_get_session_ticket_lifetime_hint(struct s2n_connection *conn);
 extern ssize_t s2n_connection_get_session_length(struct s2n_connection *conn);
 extern ssize_t s2n_connection_get_session_id_length(struct s2n_connection *conn);
 extern int s2n_connection_is_session_resumed(struct s2n_connection *conn);
+extern int s2n_connection_is_ocsp_stapled(struct s2n_connection *conn);
 
 /* RFC's that define below values:
  *  - https://tools.ietf.org/html/rfc5246#section-7.4.4
@@ -215,6 +231,7 @@ extern int s2n_connection_get_actual_protocol_version(struct s2n_connection *con
 extern int s2n_connection_get_client_hello_version(struct s2n_connection *conn);
 extern int s2n_connection_client_cert_used(struct s2n_connection *conn);
 extern const char *s2n_connection_get_cipher(struct s2n_connection *conn);
+extern int s2n_connection_is_valid_for_cipher_preferences(struct s2n_connection *conn, const char *version);
 extern const char *s2n_connection_get_curve(struct s2n_connection *conn);
 extern int s2n_connection_get_alert(struct s2n_connection *conn);
 

@@ -43,7 +43,8 @@ typedef enum {
     CLIENT_FINISHED,
     SERVER_CHANGE_CIPHER_SPEC,
     SERVER_FINISHED,
-    APPLICATION_DATA
+    APPLICATION_DATA,
+    SERVER_SESSION_LOOKUP
 } message_type_t;
 
 struct s2n_handshake_parameters {
@@ -64,6 +65,9 @@ struct s2n_handshake {
     struct s2n_hash_state sha384;
     struct s2n_hash_state sha512;
     struct s2n_hash_state md5_sha1;
+
+    /* A copy of the handshake messages hash used to validate the CertificateVerify message */
+    struct s2n_hash_state ccv_hash_copy;
 
     /* Used for SSLv3, TLS 1.0, and TLS 1.1 PRFs */
     struct s2n_hash_state prf_md5_hash_copy;
@@ -97,6 +101,7 @@ struct s2n_handshake {
 
 /* Handshake needs OCSP status message */
 #define OCSP_STATUS                 0x08
+#define IS_OCSP_STAPLED( type ) ( (type) & OCSP_STATUS )
 
 /* Handshake should request a Client Certificate */
 #define CLIENT_AUTH                 0x10
@@ -106,6 +111,7 @@ struct s2n_handshake {
 
 /* Session Resumption via session-tickets */
 #define WITH_SESSION_TICKET         0x20
+#define IS_ISSUING_NEW_SESSION_TICKET( type )   ( (type) & WITH_SESSION_TICKET )
 
     /* Which handshake message number are we processing */
     int message_number;
