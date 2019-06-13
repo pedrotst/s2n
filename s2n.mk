@@ -92,7 +92,10 @@ ifndef COV_TOOL
 	endif
 endif
 
-CFLAGS_LLVM = ${DEFAULT_CFLAGS} -emit-llvm -c -g -O1
+CFLAGS_LLVM = -emit-llvm -c \
+              -std=c99 -fgnu89-inline -D_POSIX_C_SOURCE=200809L -D_FORTIFY_SOURCE=2 \
+              -DNDEBUG -D_OPTIMIZED_GENERIC_ \
+              -I$(LIBCRYPTO_ROOT)/include/ -I../api/ -I../
 
 $(BITCODE_DIR)%.bc: %.c
 	$(CLANG) $(CFLAGS_LLVM) -o $@ $< 
