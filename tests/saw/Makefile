@@ -69,6 +69,7 @@ clean_the_dir :
 	${RM} -r tmp
 	${RM} -r failure_tests/*.log
 	${RM} -r sike/*.log
+	${RM} -r bike/*.log                                                        
 	${RM} -r bitcode/*.bc
 
 ###########################################
@@ -121,6 +122,14 @@ sike/sidh.log :
 sike/sike.log :
 	@set -o pipefail; \
 	saw sike/verify_sike.saw | tee $@
+
+###########################################
+## BIKE Tests
+###########################################
+
+.PHONY : bike
+bike : bike_patched_bitcode
+	@${MAKE} -C bike force_all
 
 ###########################################
 ## Failure Tests
@@ -184,6 +193,9 @@ sike_patched_bitcode :
 	${MAKE} clean_the_dir
 	${MAKE} bitcode/sike_llvm.bc
 
+.PHONY : bike_bitcode
+bike_patched_bitcode : clean_the_dir bitcode/bike_llvm.bc
+
 ########################################################
 ## Rules to copy the s2n directory for patching and bulding
 ########################################################
@@ -192,12 +204,13 @@ CRYPTO_C = $(wildcard ../../crypto/*.c) $(wildcard ../../crypto/*.h) ../../crypt
 CRYPTO_COPY = $(addprefix s2n/crypto/, $(notdir $(CRYPTO_C)))
 
 PQ_CRYPTO_C = $(wildcard ../../pq-crypto/*.c) $(wildcard ../../pq-crypto/*.h) ../../pq-crypto/Makefile
-
 PQ_CRYPTO_COPY = $(addprefix s2n/pq-crypto/, $(notdir $(PQ_CRYPTO_C)))
 
 SIKE_C = $(wildcard ../../pq-crypto/sike/*.c) $(wildcard ../../pq-crypto/sike/*.h) ../../pq-crypto/sike/Makefile
-
 SIKE_COPY = $(addprefix s2n/pq-crypto/sike/, $(notdir $(SIKE_C)))
+
+BIKE_C = $(wildcard ../../pq-crypto/bike/*.c) $(wildcard ../../pq-crypto/bike/*.h) ../../pq-crypto/bike/Makefile    
+BIKE_COPY = $(addprefix s2n/pq-crypto/bike/, $(notdir $(BIKE_C)))    
 
 UTILS_C = $(wildcard ../../utils/*.c) $(wildcard ../../utils/*.h) ../../utils/Makefile
 UTILS_COPY =$(addprefix s2n/utils/, $(notdir $(UTILS_C)))
@@ -225,6 +238,9 @@ s2n/pq-crypto :
 
 s2n/pq-crypto/sike :
 	mkdir -p $@
+
+s2n/pq-crypto/bike :                                                                          
+	mkdir -p $@       
 
 s2n/utils :
 	mkdir -p $@

@@ -13,6 +13,8 @@
 #include <string.h>
 #include <assert.h>
 
+extern status_t __breakpoint__get_rand_mod_len(uint32_t**, const uint32_t*, aes_ctr_prf_state_t**, const uint64_t*, status_t*) __attribute__((noduplicate));
+
 _INLINE_ status_t get_rand_mod_len(OUT uint32_t *rand_pos,
                                    IN const uint32_t len,
                                    IN OUT aes_ctr_prf_state_t *prf_state)
@@ -22,6 +24,7 @@ _INLINE_ status_t get_rand_mod_len(OUT uint32_t *rand_pos,
 
     do
     {
+	__breakpoint__get_rand_mod_len(&rand_pos, &len, &prf_state, &mask, &res);
         // Generate 128bit of random numbers
         GUARD(aes_ctr_prf((uint8_t*)rand_pos, prf_state, sizeof(*rand_pos)), res, EXIT);
 
