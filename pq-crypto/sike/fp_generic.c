@@ -12,12 +12,31 @@ extern const uint64_t p503[NWORDS_FIELD];
 extern const uint64_t p503p1[NWORDS_FIELD]; 
 extern const uint64_t p503x2[NWORDS_FIELD]; 
 
+#define SAW_PROOFS
+#define GUARD(x) {if(x == 0) return;}
+
+int twice_mod_precond(const digit_t* x){
+#ifdef SAW_PROOFS
+    for(int i = NWORDS_FIELD - 1; i >= 0; i--){
+        if(x[i] < p503x2[i])
+            break;
+        else if (x[i] > p503x2[i])
+            return 0;
+    }
+#endif
+    return 1;
+}
+
+
 void fpadd503(const digit_t* a, const digit_t* b, digit_t* c)
 { // Modular addition, c = a+b mod p503.
   // Inputs: a, b in [0, 2*p503-1] 
   // Output: c in [0, 2*p503-1] 
     unsigned int i, carry = 0;
     digit_t mask;
+
+    GUARD(twice_mod_precond(a));
+    GUARD(twice_mod_precond(b));
 
     for (i = 0; i < NWORDS_FIELD; i++) {
         ADDC(carry, a[i], b[i], carry, c[i]); 
