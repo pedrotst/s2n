@@ -42,7 +42,7 @@ let unary_ptr_op_felm f = do {
     crucible_postcond {{ pftwice_mod(c) }};
 };
 
-let twice_mod_precond_spec = do {
+let twice_mod_cond_spec = do {
     (x, xp) <- A_felm_t "x";
 
     crucible_precond {{ pftwice_mod x }};
@@ -623,9 +623,9 @@ let fp2inv503_mont_spec = do {
 ///////////////////////////////////////////////////////////////////////////////
 // Proof commands
 
-twicemod_precond_ov <- verify "twice_mod_precond" [] twice_mod_precond_spec;
+twicemod_cond_ov <- verify "twice_mod_cond" [] twice_mod_cond_spec;
 
-let precond_ovs = [twicemod_precond_ov];
+let precond_ovs = [twicemod_cond_ov];
 
 /*
 fpzero503_ov <- verify "fpzero503" [] fpzero503_spec;
@@ -635,25 +635,25 @@ fpcorrection503_ov <- verify "fpcorrection503" [] fpcorrection503_spec;
 
 fpadd503_ov <- verify "fpadd503" precond_ovs fpadd503_spec;
 
-/*
-fpadd503_left_ov <- admit "fpadd503" [] fpadd503_left_spec;
-fpadd503_right_ov <- admit "fpadd503" [] fpadd503_right_spec;
-fpadd503_same_ov <- verify "fpadd503" [] fpadd503_same_spec;
-fpadd503_same_norm_ov <- verify "fpadd503" [] fpadd503_same_norm_spec;
-fpadd503_pair_ov <- verify "fpadd503" [] fpadd503_pair_spec;
-fpadd503_pair_norm_ov <- verify "fpadd503" [] fpadd503_pair_norm_spec;
-fpadd503_dup_left_ov <- admit "fpadd503" [] fpadd503_dup_left_spec;
+fpadd503_left_ov <- admit "fpadd503" precond_ovs fpadd503_left_spec;
+fpadd503_right_ov <- admit "fpadd503" precond_ovs fpadd503_right_spec;
+fpadd503_same_ov <- verify "fpadd503" precond_ovs fpadd503_same_spec;
+fpadd503_same_norm_ov <- verify "fpadd503" precond_ovs fpadd503_same_norm_spec;
+fpadd503_pair_ov <- verify "fpadd503" precond_ovs fpadd503_pair_spec;
+fpadd503_pair_norm_ov <- verify "fpadd503" precond_ovs fpadd503_pair_norm_spec;
+fpadd503_dup_left_ov <- admit "fpadd503" precond_ovs fpadd503_dup_left_spec;
 
-fpsub503_ov <- admit "fpsub503" [] fpsub503_spec;
-fpsub503_left_ov <- admit "fpsub503" [] fpsub503_left_spec;
-fpsub503_right_ov <- admit "fpsub503" [] fpsub503_right_spec;
-fpsub503_same_ov <- admit "fpsub503" [] fpsub503_same_spec;
+fpsub503_ov <- admit "fpsub503" precond_ovs fpsub503_spec;
+fpsub503_left_ov <- admit "fpsub503" precond_ovs fpsub503_left_spec;
+fpsub503_right_ov <- admit "fpsub503" precond_ovs fpsub503_right_spec;
+fpsub503_same_ov <- admit "fpsub503" precond_ovs fpsub503_same_spec;
 
-fpneg503_nonzero_ov <- verify "fpneg503" [] fpneg503_nonzero_spec;
-fpneg503_ov <- admit "fpneg503" [] fpneg503_spec;
+fpneg503_nonzero_ov <- verify "fpneg503" precond_ovs fpneg503_nonzero_spec;
+fpneg503_ov <- admit "fpneg503" precond_ovs fpneg503_spec;
 fpdiv2_503_ov <- verify "fpdiv2_503" [] fpdiv2_503_spec;
 rdc_mont_ov <- admit "rdc_mont" [] rdc_mont_spec;
 
+/*
 fpmul503_mont_ov <- verify_unint "fpmul503_mont"
     [rdc_mont_ov,mul_ov,mul_half_ov] ["rdc_mont"]
     (fpmul503_mont_spec false false);
@@ -753,3 +753,4 @@ from_fp2mont_norm_ov <- verify_unint "from_fp2mont"
 
 fp2inv503_mont_ov <- admit "fp2inv503_mont" [] fp2inv503_mont_spec;
 */
+

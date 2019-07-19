@@ -14,7 +14,7 @@ extern const uint64_t p503x2[NWORDS_FIELD];
 
 #define GUARD(x) {if(x == 0) return;}
 
-int twice_mod_precond(const digit_t* x){
+int twice_mod_cond(const digit_t* x){
 #ifdef SAW_PROOFS
     for(int i = NWORDS_FIELD - 1; i >= 0; i--){
         if(x[i] < p503x2[i])
@@ -34,8 +34,8 @@ void fpadd503(const digit_t* a, const digit_t* b, digit_t* c)
     unsigned int i, carry = 0;
     digit_t mask;
 
-    GUARD(twice_mod_precond(a));
-    GUARD(twice_mod_precond(b));
+    GUARD(twice_mod_cond(a));
+    GUARD(twice_mod_cond(b));
 
     for (i = 0; i < NWORDS_FIELD; i++) {
         ADDC(carry, a[i], b[i], carry, c[i]); 
@@ -51,6 +51,7 @@ void fpadd503(const digit_t* a, const digit_t* b, digit_t* c)
     for (i = 0; i < NWORDS_FIELD; i++) {
         ADDC(carry, c[i], ((const digit_t*)p503x2)[i] & mask, carry, c[i]); 
     }
+    GUARD(twice_mod_cond(c));
 } 
 
 
@@ -61,6 +62,9 @@ void fpsub503(const digit_t* a, const digit_t* b, digit_t* c)
     unsigned int i, borrow = 0;
     digit_t mask;
 
+    GUARD(twice_mod_cond(a));
+    GUARD(twice_mod_cond(b));
+
     for (i = 0; i < NWORDS_FIELD; i++) {
         SUBC(borrow, a[i], b[i], borrow, c[i]); 
     }
@@ -70,6 +74,8 @@ void fpsub503(const digit_t* a, const digit_t* b, digit_t* c)
     for (i = 0; i < NWORDS_FIELD; i++) {
         ADDC(borrow, c[i], ((const digit_t*)p503x2)[i] & mask, borrow, c[i]); 
     }
+
+    GUARD(twice_mod_cond(c));
 }
 
 
@@ -78,6 +84,7 @@ void fpneg503(digit_t* a)
   // Input/output: a in [0, 2*p503-1] 
     unsigned int i, borrow = 0;
 
+    GUARD(twice_mod_cond(a));
     for (i = 0; i < NWORDS_FIELD; i++) {
         SUBC(borrow, ((const digit_t*)p503x2)[i], a[i], borrow, a[i]); 
     }
@@ -91,12 +98,14 @@ void fpdiv2_503(const digit_t* a, digit_t* c)
     unsigned int i, carry = 0;
     digit_t mask;
         
+    GUARD(twice_mod_cond(a));
     mask = 0 - (digit_t)(a[0] & 1);    // If a is odd compute a+p503
     for (i = 0; i < NWORDS_FIELD; i++) {
         ADDC(carry, a[i], ((const digit_t*)p503)[i] & mask, carry, c[i]); 
     }
 
     mp_shiftr1(c, NWORDS_FIELD);
+    GUARD(twice_mod_cond(a));
 } 
 
 
@@ -105,6 +114,7 @@ void fpcorrection503(digit_t* a)
     unsigned int i, borrow = 0;
     digit_t mask;
 
+    GUARD(twice_mod_cond(a));
     for (i = 0; i < NWORDS_FIELD; i++) {
         SUBC(borrow, a[i], ((const digit_t*)p503)[i], borrow, a[i]); 
     }
