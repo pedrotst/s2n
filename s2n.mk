@@ -43,10 +43,15 @@ DEFAULT_CFLAGS = -pedantic -Wall -Werror -Wimplicit -Wunused -Wcomment -Wchar-su
 
 COVERAGE_CFLAGS = -fprofile-arcs -ftest-coverage
 COVERAGE_LDFLAGS = --coverage
+SAW_FLAGS = -DSAWPROOFS
 
 ifdef S2N_COVERAGE
     DEFAULT_CFLAGS += ${COVERAGE_CFLAGS}
     LIBS += ${COVERAGE_LDFLAGS}
+endif
+
+ifdef SAW_PROOFS
+    DEFAULT_CFLAGS += ${SAW_FLAGS}
 endif
 
 # Add a flag to disable stack protector for alternative libcs without

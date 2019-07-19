@@ -12,7 +12,6 @@ extern const uint64_t p503[NWORDS_FIELD];
 extern const uint64_t p503p1[NWORDS_FIELD]; 
 extern const uint64_t p503x2[NWORDS_FIELD]; 
 
-#define SAW_PROOFS
 #define GUARD(x) {if(x == 0) return;}
 
 int twice_mod_precond(const digit_t* x){

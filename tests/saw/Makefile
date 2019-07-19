@@ -26,6 +26,7 @@ SHELL:=/bin/bash
 YICES_VERSION=$(shell yices-smt2 --version)
 export LIBCRYPTO_ROOT:=$(shell pwd)/../../libcrypto-root
 export S2N_ROOT=$(shell pwd)/s2n
+export SAW_PROOFS="-DSAW_PROOFS"
 
 .PHONY : all
 all:
