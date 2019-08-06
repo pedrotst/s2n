@@ -35,7 +35,7 @@ let compute_syndrome_spec = do {
     (c,cp) <- in_ref sk_T "sk";
     crucible_execute_func [ap, bp, cp];
     a' <- point_to syndrome_T ap "a'";
-    // crucible_postcond {{ a' == compute_syndrome b c }};
+    crucible_postcond {{ a' == compute_syndrome b c }};
     res <- crucible_fresh_var "res" i32;
     crucible_return (tm res);
 };
