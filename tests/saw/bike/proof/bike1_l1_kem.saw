@@ -71,7 +71,7 @@ let crypto_kem_dec_unsuccessful_spec = do {
 
     crucible_execute_func [ap, bp, cp];
     ret <- crucible_fresh_var "ret" i32;
-    crucible_postcond {{ ret == fromInteger`{[32]} ((BIKE1_L1_crypto_kem_dec b c).0) }};
+    // crucible_postcond {{ ret == fromInteger`{[32]} ((BIKE1_L1_crypto_kem_dec b c).0) }};
     crucible_return (tm ret);
 };
 
@@ -174,6 +174,6 @@ crypto_kem_dec_unsuccessful_ov <- verify_unint "BIKE1_L1_crypto_kem_dec"
 
 // NOTE: Step 1 of 2 - conditioned on a SUCCESS result
 // crypto_kem_dec_successful_ov <- verify_unint "BIKE1_L1_crypto_kem_dec"
-//     crypto_kem_dec_O
-//     crypto_kem_dec_U
-//     crypto_kem_dec_successful_spec;
+    // crypto_kem_dec_O
+    // crypto_kem_dec_U
+    // crypto_kem_dec_successful_spec;
